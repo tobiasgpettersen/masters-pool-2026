@@ -469,20 +469,17 @@ function renderLeaderboard() {
   html += '<div class="col-span-2 text-right">Total</div>';
   html += '</div>';
 
-  // Split into favorites and rest
+  // Show favorites pinned at top, then full leaderboard (including favorites in their natural position)
   const favEntries = filtered.filter(e => favorites.has(e.name));
-  const restEntries = filtered.filter(e => !favorites.has(e.name));
 
   if (favEntries.length > 0) {
     html += '<div class="flex items-center gap-2 px-2 pt-2 pb-1 text-xs text-augusta-gold font-semibold uppercase tracking-widest"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Favorites</div>';
     for (const entry of favEntries) { html += renderRow(entry); }
-    if (restEntries.length > 0) {
-      html += '<div class="border-t border-board-border my-3"></div>';
-      html += '<div class="px-2 pb-1 text-xs text-gray-600 font-semibold uppercase tracking-widest">All Participants</div>';
-    }
+    html += '<div class="border-t border-board-border my-3"></div>';
+    html += '<div class="px-2 pb-1 text-xs text-gray-600 font-semibold uppercase tracking-widest">All Participants</div>';
   }
 
-  for (const entry of restEntries) { html += renderRow(entry); }
+  for (const entry of filtered) { html += renderRow(entry); }
 
   html += '</div>';
   // All data is from our own embedded JSON and ESPN API - no user-generated HTML content
