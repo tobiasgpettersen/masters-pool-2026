@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Masters Pool Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        masters: { green: '#006747', dark: '#004d35', light: '#008c5f' },
+        augusta: { gold: '#c8a951', cream: '#f5f0e1' },
+        board: { bg: '#0f1923', card: '#162029', hover: '#1e2d3a', border: '#253545' }
+      }
+    }
+  }
+}
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+body { font-family: 'Inter', sans-serif; }
+.fade-in { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.pulse-dot { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.slide-up { animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #0f1923; }
+::-webkit-scrollbar-thumb { background: #253545; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #354555; }
+.mover-up { animation: glowUp 1.5s ease-out; }
+@keyframes glowUp { 0% { background-color: rgba(34,197,94,0.2); } 100% { background-color: transparent; } }
+.mover-down { animation: glowDown 1.5s ease-out; }
+@keyframes glowDown { 0% { background-color: rgba(239,68,68,0.15); } 100% { background-color: transparent; } }
+.bounce-in { animation: bounceIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes bounceIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.rank-gold { background: linear-gradient(135deg, #c8a951 0%, #f0d878 50%, #c8a951 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.rank-silver { background: linear-gradient(135deg, #9ca3af 0%, #d1d5db 50%, #9ca3af 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.rank-bronze { background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #b45309 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+</style>
+</head>
+<body class="bg-board-bg text-gray-200 min-h-screen">
+
+<!-- Header -->
+<header class="bg-masters-green sticky top-0 z-50 shadow-lg">
+  <div class="max-w-7xl mx-auto px-4 py-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="text-2xl md:text-3xl font-black text-white tracking-tight">THE MASTERS</div>
+        <div class="text-augusta-gold text-sm md:text-base font-semibold">2026 POOL</div>
+      </div>
+      <div class="flex items-center gap-2 text-xs md:text-sm">
+        <span class="pulse-dot w-2 h-2 bg-green-400 rounded-full inline-block"></span>
+        <span id="liveStatus" class="text-green-300 font-medium">CONNECTING...</span>
+      </div>
+    </div>
+    <!-- Search -->
+    <div class="mt-2 relative">
+      <input type="text" id="searchInput" placeholder="Search participants..." 
+        class="w-full bg-masters-dark/50 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-white/50 focus:outline-none focus:border-augusta-gold focus:ring-1 focus:ring-augusta-gold text-sm">
+      <svg class="absolute right-3 top-2.5 w-4 h-4 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<!-- Tournament Info Bar -->
+<div id="tournamentInfo" class="bg-board-card border-b border-board-border">
+  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between text-xs md:text-sm text-gray-400">
+    <span id="roundInfo">Loading tournament data...</span>
+    <span id="participantCount">501 participants</span>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40">
+  <div class="max-w-7xl mx-auto px-4 flex gap-1">
+    <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn px-4 py-2 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
+    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Golfer Stats</button>
+    <button onclick="switchTab('my-team')" id="tab-my-team" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
+    <button onclick="switchTab('payouts')" id="tab-payouts" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto px-2 md:px-4 py-4">
+  <div id="leaderboard-tab"></div>
+  <div id="stats-tab" class="hidden"></div>
+  <div id="my-team-tab" class="hidden"></div>
+  <div id="payouts-tab" class="hidden"></div>
+</main>
+
+<!-- Detail Modal -->
+<div id="detailModal" class="fixed inset-0 bg-black/70 z-50 hidden items-end md:items-center justify-center" onclick="if(event.target===this)closeModal()">
+  <div id="detailContent" class="bg-board-card rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[85vh] overflow-y-auto slide-up"></div>
+</div>
+
+<script>
+// ===== EMBEDDED DATA =====
+const ENTRIES = [{"n":"Daniel Shoup","w":273,"p":["Justin Rose","Ludvig Aberg","Adam Scott","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Bob Dowe","w":270,"p":["Chris Gotterup","Shane Lowry","Ludvig Aberg","Brooks Koepka"],"b":"Fred Couples"},{"n":"Darris Schuett","w":271,"p":["Bryson DeChambeau","Shane Lowry","Brooks Koepka","Matt Fitzpatrick"],"b":"Ethan Fang"},{"n":"Nadiv Ahsan","w":277,"p":["Xander Schauffele","Ludvig Aberg","Jason Day","Brooks Koepka"],"b":"Mike Weir"},{"n":"Andrew Fischer","w":273,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Bill Hagan","w":274,"p":["Justin Rose","Ludvig Aberg","Adam Scott","Wyndham Clark"],"b":"Angel Cabrera"},{"n":"Casey Ceman","w":274,"p":["Hideki Matsuyama","Brooks Koepka","Jon Rahm","Bryson DeChambeau"],"b":"Vijay Singh"},{"n":"Stacey Montefusco","w":275,"p":["Scottie Scheffler","Jordan Spieth","Sungjae Im","Brooks Koepka"],"b":"Fred Couples"},{"n":"James O'Brien","w":275,"p":["Scottie Scheffler","Jon Rahm","Brooks Koepka","Cameron Smith"],"b":"Mike Weir"},{"n":"Cody Price","w":276,"p":["Ludvig Aberg","Corey Conners","Akshay Bhatia","Adam Scott"],"b":"Fred Couples"},{"n":"Margaret Grace","w":277,"p":["Bryson DeChambeau","Xander Schauffele","Brooks Koepka","Tyrrell Hatton"],"b":"Mike Weir"},{"n":"Kevin Mitchell","w":272,"p":["Ludvig Aberg","Min Woo Lee","Shane Lowry","Aldrich Potgieter"],"b":"Mike Weir"},{"n":"Ryan Colby","w":277,"p":["Jon Rahm","Bryson DeChambeau","Patrick Reed","Wyndham Clark"],"b":"Fred Couples"},{"n":"Mark DeLaura","w":274,"p":["Brooks Koepka","Bryson DeChambeau","Chris Gotterup","Akshay Bhatia"],"b":"Angel Cabrera"},{"n":"Brad Volchok","w":276,"p":["Rory McIlroy","Jacob Bridgeman","Wyndham Clark","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Jackson McCann","w":276,"p":["Jon Rahm","Adam Scott","Gary Woodland","Corey Conners"],"b":"Mason Howell"},{"n":"Kerry Ceman","w":271,"p":["Rory McIlroy","Bryson DeChambeau","Gary Woodland","Max Homa"],"b":"Jackson Herrington"},{"n":"Brent Ziegler","w":298,"p":["Brooks Koepka","Robert MacIntyre","Chris Gotterup","Jake Knapp"],"b":"Vijay Singh"},{"n":"Chris Ceman","w":274,"p":["Cameron Smith","Jon Rahm","Bryson DeChambeau","Ludvig Aberg"],"b":"Ethan Fang"},{"n":"Steven Harasymiak","w":286,"p":["Sungjae Im","Viktor Hovland","Bryson DeChambeau","Tyrrell Hatton"],"b":"Brandon Holtz"},{"n":"Aaron Grinter","w":278,"p":["Ludvig Aberg","Brooks Koepka","Bryson DeChambeau","Jon Rahm"],"b":"Ethan Fang"},{"n":"Hunter Kramen","w":278,"p":["Adam Scott","Cameron Young","Viktor Hovland","Max Homa"],"b":"Mason Howell"},{"n":"Riley Glenn","w":272,"p":["Ludvig Aberg","Bryson DeChambeau","Jake Knapp","Jordan Spieth"],"b":"Mason Howell"},{"n":"Sean Fairchild","w":280,"p":["Matt Fitzpatrick","Min Woo Lee","Jake Knapp","Sungjae Im"],"b":"Brandon Holtz"},{"n":"Nathan Volchok","w":276,"p":["Bryson DeChambeau","Collin Morikawa","Brooks Koepka","Shane Lowry"],"b":"Angel Cabrera"},{"n":"Brian Skipper","w":277,"p":["Jon Rahm","Justin Thomas","Corey Conners","Brooks Koepka"],"b":"Fred Couples"},{"n":"Connor Sullivan","w":275,"p":["Ludvig Aberg","Corey Conners","Patrick Reed","Adam Scott"],"b":"Ethan Fang"},{"n":"Steve Zumbano","w":277,"p":["Scottie Scheffler","Bryson DeChambeau","Brooks Koepka","Cameron Smith"],"b":"Ethan Fang"},{"n":"Derek Clarkin","w":274,"p":["Ludvig Aberg","Jake Knapp","Nicolai Hojgaard","Jason Day"],"b":"Mike Weir"},{"n":"Mark Latouf","w":276,"p":["Ludvig Aberg","Jon Rahm","Brooks Koepka","Shane Lowry"],"b":"Angel Cabrera"},{"n":"Nicholas Zuchelli","w":276,"p":["Ludvig Aberg","Min Woo Lee","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Dave Menkens","w":276,"p":["Ludvig Aberg","Viktor Hovland","Bryson DeChambeau","Brooks Koepka"],"b":"Mason Howell"},{"n":"Michele Menkens","w":275,"p":["Justin Rose","Bryson DeChambeau","Patrick Cantlay","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Matt Larson","w":275,"p":["Patrick Reed","Bryson DeChambeau","Jason Day","Jake Knapp"],"b":"Mason Howell"},{"n":"Brian Mahar","w":276,"p":["Ludvig Aberg","Jon Rahm","Bryson DeChambeau","Brooks Koepka"],"b":"Fred Couples"},{"n":"Danielle Cassidy","w":277,"p":["Cameron Young","Ludvig Aberg","Wyndham Clark","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Cory Yearian","w":268,"p":["Ludvig Aberg","Bryson DeChambeau","Jason Day","Adam Scott"],"b":"Ethan Fang"},{"n":"Will Hale","w":270,"p":["Ludvig Aberg","Akshay Bhatia","Cameron Smith","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Douglas Rager","w":282,"p":["Brooks Koepka","Patrick Reed","Matt Fitzpatrick","Brian Harman"],"b":"Vijay Singh"},{"n":"Bob Brown","w":274,"p":["Xander Schauffele","Bryson DeChambeau","Adam Scott","Jordan Spieth"],"b":"Fred Couples"},{"n":"Michael Bibler","w":276,"p":["Ludvig Aberg","Viktor Hovland","Min Woo Lee","Cameron Smith"],"b":"Mason Howell"},{"n":"David Windsor","w":278,"p":["Harris English","Bryson DeChambeau","Jason Day","Gary Woodland"],"b":"Angel Cabrera"},{"n":"Ryan Hill","w":272,"p":["Scottie Scheffler","Max Greyserman","Brooks Koepka","Brian Harman"],"b":"Angel Cabrera"},{"n":"Brennan Thomas","w":276,"p":["Scottie Scheffler","Jordan Spieth","Adam Scott","Brooks Koepka"],"b":"Fred Couples"},{"n":"Kennedy Rose","w":277,"p":["Xander Schauffele","Bryson DeChambeau","Nicolai Hojgaard","Cameron Smith"],"b":"Vijay Singh"},{"n":"Danny Lynn","w":278,"p":["Ludvig Aberg","Corey Conners","Jon Rahm","Adam Scott"],"b":"Vijay Singh"},{"n":"Bobby Piccerillo","w":271,"p":["Jon Rahm","Sungjae Im","Cameron Smith","Bryson DeChambeau"],"b":"Fred Couples"},{"n":"Brandon Mitchell","w":276,"p":["Scottie Scheffler","Corey Conners","Jordan Spieth","Cameron Smith"],"b":"Vijay Singh"},{"n":"Steve Wolfe","w":277,"p":["Viktor Hovland","Bryson DeChambeau","Shane Lowry","Adam Scott"],"b":"Angel Cabrera"},{"n":"Kevyn Mitchell","w":278,"p":["Jake Knapp","Jon Rahm","Xander Schauffele","Sungjae Im"],"b":"Jose Maria Olazabal"},{"n":"Jim Blizzard","w":281,"p":["Hideki Matsuyama","Ludvig Aberg","Jordan Spieth","Brooks Koepka"],"b":"Mason Howell"},{"n":"Patrick Cansfield","w":274,"p":["Akshay Bhatia","Ludvig Aberg","Brooks Koepka","Corey Conners"],"b":"Mason Howell"},{"n":"Andrew Cansfield","w":276,"p":["Scottie Scheffler","Brooks Koepka","Cameron Smith","Akshay Bhatia"],"b":"Mason Howell"},{"n":"Elaine Liggitt","w":273,"p":["Tommy Fleetwood","Ludvig Aberg","Wyndham Clark","Max Homa"],"b":"Mike Weir"},{"n":"Chris Lankford","w":275,"p":["Hideki Matsuyama","Ludvig Aberg","Jordan Spieth","Gary Woodland"],"b":"Brandon Holtz"},{"n":"Garrett Davis","w":270,"p":["Akshay Bhatia","Brian Harman","Adam Scott","Jordan Spieth"],"b":"Jackson Herrington"},{"n":"Grant Lang","w":274,"p":["Ludvig Aberg","Max Homa","Collin Morikawa","Jason Day"],"b":"Ethan Fang"},{"n":"Samuel Browning","w":278,"p":["Bryson DeChambeau","Jason Day","Si Woo Kim","Jake Knapp"],"b":"Jackson Herrington"},{"n":"Nate Vaughn","w":277,"p":["Ludvig Aberg","Brooks Koepka","Akshay Bhatia","Patrick Reed"],"b":"Vijay Singh"},{"n":"Kevin Atwell","w":272,"p":["Hideki Matsuyama","Shane Lowry","Viktor Hovland","Max Homa"],"b":"Brandon Holtz"},{"n":"Brendan Furlong","w":278,"p":["Collin Morikawa","Chris Gotterup","Jake Knapp","Cameron Smith"],"b":"Ethan Fang"},{"n":"Karl Fickessen","w":273,"p":["Chris Gotterup","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Mike Weir"},{"n":"Ryan Babbitt","w":277,"p":["Ludvig Aberg","Jon Rahm","Corey Conners","Jordan Spieth"],"b":"Fred Couples"},{"n":"Blake Hochstetler","w":275,"p":["Matt Fitzpatrick","Jon Rahm","Jason Day","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Tommy Troy","w":269,"p":["Justin Rose","Ludvig Aberg","Adam Scott","Wyndham Clark"],"b":"Mike Weir"},{"n":"T. Ed Freeman","w":275,"p":["Cameron Young","Shane Lowry","Cameron Smith","Michael Kim"],"b":"Ethan Fang"},{"n":"Philip A Arrigo","w":276,"p":["Jacob Bridgeman","Matt Fitzpatrick","Max Homa","Jason Day"],"b":"Mason Howell"},{"n":"Alex Oliver","w":278,"p":["Jason Day","Adam Scott","Matt Fitzpatrick","Tyrrell Hatton"],"b":"Jackson Herrington"},{"n":"Ashley Corradene","w":276,"p":["Bryson DeChambeau","Jon Rahm","Corey Conners","Jason Day"],"b":"Mason Howell"},{"n":"Jim Zumbano","w":278,"p":["Cameron Young","Robert MacIntyre","Brooks Koepka","Cameron Smith"],"b":"Ethan Fang"},{"n":"Carol Zumbano","w":280,"p":["Ludvig Aberg","Patrick Reed","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Joey Schultz","w":275,"p":["Robert MacIntyre","Ludvig Aberg","Jake Knapp","Brooks Koepka"],"b":"Mason Howell"},{"n":"Maddie Hochstetler","w":274,"p":["Ludvig Aberg","Gary Woodland","Bryson DeChambeau","Jason Day"],"b":"Mason Howell"},{"n":"Kellen Cansfield","w":277,"p":["Rory McIlroy","Viktor Hovland","Sungjae Im","Brooks Koepka"],"b":"Fred Couples"},{"n":"Ken Mayer","w":278,"p":["Ben Griffin","Justin Thomas","Adam Scott","Jordan Spieth"],"b":"Ethan Fang"},{"n":"Jason Hauer","w":270,"p":["Bryson DeChambeau","Justin Rose","Jason Day","Sungjae Im"],"b":"Angel Cabrera"},{"n":"Elaine Clawson","w":281,"p":["Xander Schauffele","Jordan Spieth","Justin Thomas","Davis Riley"],"b":"Mike Weir"},{"n":"Jordan Alexander","w":279,"p":["Bryson DeChambeau","Ludvig Aberg","Brooks Koepka","Jon Rahm"],"b":"Vijay Singh"},{"n":"Tommy Tang","w":275,"p":["Jon Rahm","Bryson DeChambeau","Shane Lowry","Jordan Spieth"],"b":"Vijay Singh"},{"n":"Cara Brown","w":277,"p":["Rory McIlroy","Bryson DeChambeau","Jordan Spieth","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Mike Hale","w":285,"p":["Tommy Fleetwood","Jason Day","Adam Scott","Jordan Spieth"],"b":"Ethan Fang"},{"n":"David Wehrle","w":274,"p":["Scottie Scheffler","Bryson DeChambeau","Brooks Koepka","Sergio Garcia"],"b":"Fred Couples"},{"n":"Campbell McMillen","w":277,"p":["Bryson DeChambeau","Jon Rahm","Jason Day","Michael Kim"],"b":"Jose Maria Olazabal"},{"n":"Steve Heck","w":268,"p":["Bryson DeChambeau","Jon Rahm","Jake Knapp","Jason Day"],"b":"Ethan Fang"},{"n":"Jeff Clawson","w":281,"p":["Scottie Scheffler","Bryson DeChambeau","Bubba Watson","Max Homa"],"b":"Fred Couples"},{"n":"Kris Nandlal","w":277,"p":["Xander Schauffele","Jake Knapp","Akshay Bhatia","Sungjae Im"],"b":"Ethan Fang"},{"n":"Sandra Weisser","w":280,"p":["Xander Schauffele","Akshay Bhatia","Shane Lowry","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Patrick McGuire","w":272,"p":["Ludvig Aberg","Jake Knapp","Jordan Spieth","Patrick Reed"],"b":"Ethan Fang"},{"n":"Phil Stafford","w":272,"p":["Cameron Young","Jon Rahm","Sungjae Im","Cameron Smith"],"b":"Fred Couples"},{"n":"Matt Jimenez","w":276,"p":["Ludvig Aberg","Brooks Koepka","Corey Conners","Xander Schauffele"],"b":"Mike Weir"},{"n":"Connor Williams","w":276,"p":["Brooks Koepka","Collin Morikawa","Ludvig Aberg","Jason Day"],"b":"Ethan Fang"},{"n":"Preston Clarke","w":277,"p":["Jon Rahm","Jason Day","Xander Schauffele","Sungjae Im"],"b":"Mike Weir"},{"n":"Paul Ford","w":276,"p":["Jon Rahm","Ludvig Aberg","Corey Conners","Sungjae Im"],"b":"Fred Couples"},{"n":"Nick Disalvo","w":272,"p":["Hideki Matsuyama","Ludvig Aberg","Jake Knapp","Rasmus Neergaard-Petersen"],"b":"Jackson Herrington"},{"n":"Al Alexiades","w":279,"p":["Russell Henley","Harris English","Ryan Fox","Nick Taylor"],"b":"Mike Weir"},{"n":"Rob Hogans","w":275,"p":["Collin Morikawa","Akshay Bhatia","Brian Harman","Wyndham Clark"],"b":"Vijay Singh"},{"n":"Katie Alexiades","w":284,"p":["Justin Rose","Xander Schauffele","Casey Jarvis","Sungjae Im"],"b":"Mateo Pulcini"},{"n":"Rich Brovero","w":279,"p":["Ludvig Aberg","Jacob Bridgeman","Shane Lowry","Max Homa"],"b":"Fred Couples"},{"n":"Jeanne Hale","w":273,"p":["Rory McIlroy","Collin Morikawa","Max Homa","Brooks Koepka"],"b":"Fred Couples"},{"n":"Tim Keys","w":270,"p":["Viktor Hovland","Justin Rose","Adam Scott","Jordan Spieth"],"b":"Vijay Singh"},{"n":"John Fabrizzio","w":278,"p":["Viktor Hovland","Bryson DeChambeau","Andrew Novak","Brian Harman"],"b":"Mason Howell"},{"n":"Eric Hickenlooper","w":277,"p":["Hideki Matsuyama","Patrick Reed","Corey Conners","Adam Scott"],"b":"Angel Cabrera"},{"n":"Sarah Wells","w":278,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"PJ Mastalski","w":277,"p":["Tommy Fleetwood","Keegan Bradley","Brooks Koepka","Gary Woodland"],"b":"Mateo Pulcini"},{"n":"Nicole Brovero","w":270,"p":["Scottie Scheffler","Jon Rahm","Cameron Smith","Brooks Koepka"],"b":"Fred Couples"},{"n":"Ellen Patton","w":276,"p":["Justin Rose","Akshay Bhatia","Nicolai Hojgaard","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Karen Patton","w":278,"p":["Chris Gotterup","Akshay Bhatia","Jason Day","Jordan Spieth"],"b":"Fred Couples"},{"n":"Phil Patton","w":277,"p":["Xander Schauffele","Ludvig Aberg","Jordan Spieth","Sungjae Im"],"b":"Fred Couples"},{"n":"Matt Vanderpool","w":274,"p":["Xander Schauffele","Jon Rahm","Corey Conners","Sungjae Im"],"b":"Angel Cabrera"},{"n":"Charlie Reese","w":274,"p":["Ludvig Aberg","Jason Day","Adam Scott","Viktor Hovland"],"b":"Ethan Fang"},{"n":"Brian Smith","w":274,"p":["Xander Schauffele","Chris Gotterup","Jordan Spieth","Cameron Smith"],"b":"Fred Couples"},{"n":"Matt Button","w":274,"p":["Xander Schauffele","Ludvig Aberg","Jordan Spieth","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Michael Mayer","w":277,"p":["Bryson DeChambeau","Jon Rahm","Jason Day","Corey Conners"],"b":"Ethan Fang"},{"n":"Tim OHara","w":276,"p":["Brooks Koepka","Ludvig Aberg","Xander Schauffele","Jake Knapp"],"b":"Mateo Pulcini"},{"n":"Taylor Canel","w":274,"p":["Ludvig Aberg","Bryson DeChambeau","Brooks Koepka","Viktor Hovland"],"b":"Ethan Fang"},{"n":"Thomas Harrison","w":276,"p":["Brooks Koepka","Sungjae Im","Ludvig Aberg","Jon Rahm"],"b":"Angel Cabrera"},{"n":"Josh Churchill","w":276,"p":["Justin Rose","Patrick Reed","Jason Day","Sungjae Im"],"b":"Vijay Singh"},{"n":"Bryce Yearian","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Max Homa"],"b":"Mason Howell"},{"n":"Todd Shanosky","w":273,"p":["Jordan Spieth","Max Homa","Michael Kim","Scottie Scheffler"],"b":"Jackson Herrington"},{"n":"Steven So","w":276,"p":["Ludvig Aberg","Brooks Koepka","Bryson DeChambeau","Jon Rahm"],"b":"Ethan Fang"},{"n":"Paul Saloomey","w":274,"p":["Ludvig Aberg","Patrick Reed","Sam Burns","Brian Campbell"],"b":"Mason Howell"},{"n":"Steve Warming","w":278,"p":["Hideki Matsuyama","Shane Lowry","Patrick Cantlay","Gary Woodland"],"b":"Vijay Singh"},{"n":"Robert Massey","w":269,"p":["Justin Rose","Bryson DeChambeau","Jason Day","Wyndham Clark"],"b":"Ethan Fang"},{"n":"Kevin Rinker","w":276,"p":["Justin Rose","Ludvig Aberg","Corey Conners","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Michael Babikian","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Fred Couples"},{"n":"Jim Hodge","w":281,"p":["Matt Fitzpatrick","Tyrrell Hatton","Corey Conners","Adam Scott"],"b":"Angel Cabrera"},{"n":"Twister McComas","w":276,"p":["Ludvig Aberg","Jacob Bridgeman","Tyrrell Hatton","Max Homa"],"b":"Jackson Herrington"},{"n":"Irene Hodge","w":280,"p":["Patrick Reed","Shane Lowry","Chris Gotterup","Sungjae Im"],"b":"Angel Cabrera"},{"n":"Brad Schaefer","w":278,"p":["Chris Gotterup","Bryson DeChambeau","Jon Rahm","Max Homa"],"b":"Ethan Fang"},{"n":"Darcy Schaefer","w":280,"p":["Matt Fitzpatrick","Akshay Bhatia","Tyrrell Hatton","Zach Johnson"],"b":"Ethan Fang"},{"n":"Bill Hansen","w":275,"p":["Ludvig Aberg","Nicolas Echavarria","Sungjae Im","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Garreth Carpenter","w":272,"p":["Sungjae Im","Corey Conners","Ludvig Aberg","Chris Gotterup"],"b":"Ethan Fang"},{"n":"Brian Barcellona","w":277,"p":["Bryson DeChambeau","Ludvig Aberg","Jon Rahm","Cameron Smith"],"b":"Mike Weir"},{"n":"Evan Morgan","w":274,"p":["Matt Fitzpatrick","Jordan Spieth","Chris Gotterup","Haotong Li"],"b":"Fred Couples"},{"n":"Jim Heck","w":275,"p":["Ludvig Aberg","Akshay Bhatia","Bryson DeChambeau","Brooks Koepka"],"b":"Vijay Singh"},{"n":"James Courtney","w":276,"p":["Bryson DeChambeau","Patrick Reed","Chris Gotterup","Brooks Koepka"],"b":"Fred Couples"},{"n":"John Guy","w":275,"p":["Matt Fitzpatrick","Jake Knapp","Patrick Cantlay","Adam Scott"],"b":"Ethan Fang"},{"n":"Laura Cansfield","w":277,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Sungjae Im"],"b":"Fred Couples"},{"n":"Mike Cansfield","w":276,"p":["Xander Schauffele","Bryson DeChambeau","Jason Day","Dustin Johnson"],"b":"Fred Couples"},{"n":"Collin Parker","w":273,"p":["Cameron Young","Bryson DeChambeau","Cameron Smith","Jordan Spieth"],"b":"Mason Howell"},{"n":"Tyler Gast","w":268,"p":["Ludvig Aberg","Jon Rahm","Brooks Koepka","Patrick Reed"],"b":"Vijay Singh"},{"n":"Mike Luther","w":278,"p":["Bryson DeChambeau","Justin Rose","Gary Woodland","Jordan Spieth"],"b":"Vijay Singh"},{"n":"Alex Talbert","w":275,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Sergio Garcia"],"b":"Ethan Fang"},{"n":"Jack Luther","w":278,"p":["Gary Woodland","Michael Kim","J.J. Spaun","Jordan Spieth"],"b":"Mason Howell"},{"n":"Chase Saneholtz","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Andy Priest","w":276,"p":["Tommy Fleetwood","Justin Rose","Brooks Koepka","Cameron Smith"],"b":"Mike Weir"},{"n":"Curt Haag","w":278,"p":["Viktor Hovland","Bryson DeChambeau","Jason Day","Jake Knapp"],"b":"Mason Howell"},{"n":"Adam Rogers","w":277,"p":["Patrick Reed","Jon Rahm","Nicolai Hojgaard","Adam Scott"],"b":"Mason Howell"},{"n":"Stephanie Rogers","w":278,"p":["Xander Schauffele","Bryson DeChambeau","Ryan Fox","Jordan Spieth"],"b":"Fifa Laopakdee"},{"n":"Brian Giardino","w":275,"p":["Hideki Matsuyama","Gary Woodland","Jake Knapp","Patrick Reed"],"b":"Angel Cabrera"},{"n":"Jacob Bayer","w":275,"p":["Cameron Smith","Ludvig Aberg","Bryson DeChambeau","Jon Rahm"],"b":"Ethan Fang"},{"n":"Maury Gil","w":280,"p":["Matt Fitzpatrick","Ludvig Aberg","Jason Day","Cameron Smith"],"b":"Mike Weir"},{"n":"Steve Schneider","w":277,"p":["Scottie Scheffler","Bryson DeChambeau","Brooks Koepka","Cameron Smith"],"b":"Angel Cabrera"},{"n":"Jordan Schneider","w":278,"p":["Collin Morikawa","Akshay Bhatia","Nicolai Hojgaard","Brooks Koepka"],"b":"Mason Howell"},{"n":"Evan Maurer","w":273,"p":["Robert MacIntyre","Ludvig Aberg","Jake Knapp","Brooks Koepka"],"b":"Mason Howell"},{"n":"Chere Amend","w":276,"p":["Rory McIlroy","Shane Lowry","Gary Woodland","Cameron Smith"],"b":"Fred Couples"},{"n":"Sarah Fetherston","w":274,"p":["Brooks Koepka","Xander Schauffele","Ludvig Aberg","Jason Day"],"b":"Mason Howell"},{"n":"Beth Schneider","w":279,"p":["Tommy Fleetwood","Keegan Bradley","Jordan Spieth","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Michael Turley","w":274,"p":["Ludvig Aberg","Min Woo Lee","Jon Rahm","Max Homa"],"b":"Fred Couples"},{"n":"Max Katcher","w":272,"p":["Justin Rose","Shane Lowry","Aaron Rai","Sungjae Im"],"b":"Jose Maria Olazabal"},{"n":"Dan Matheney","w":280,"p":["Ludvig Aberg","Bryson DeChambeau","Brian Harman","Jordan Spieth"],"b":"Angel Cabrera"},{"n":"Jeremy Boyle","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Patrick Reed","Brooks Koepka"],"b":"Mason Howell"},{"n":"Dan Frank","w":277,"p":["Jon Rahm","Russell Henley","Jake Knapp","Adam Scott"],"b":"Ethan Fang"},{"n":"Marign McCarthy","w":275,"p":["Corey Conners","Jordan Spieth","Jon Rahm","Ludvig Aberg"],"b":"Fred Couples"},{"n":"Mary Saloomey","w":268,"p":["Ludvig Aberg","Viktor Hovland","Akshay Bhatia","Max Homa"],"b":"Brandon Holtz"},{"n":"Mike Sadowski","w":277,"p":["Ludvig Aberg","Min Woo Lee","Jon Rahm","Cameron Smith"],"b":"Fred Couples"},{"n":"Adam O'Neil","w":274,"p":["Chris Gotterup","Bryson DeChambeau","Jon Rahm","Max Homa"],"b":"Jackson Herrington"},{"n":"Jeremy Freyman","w":276,"p":["Xander Schauffele","Patrick Reed","Corey Conners","Sungjae Im"],"b":"Fred Couples"},{"n":"Ryan McGinnis","w":272,"p":["Xander Schauffele","Ludvig Aberg","Jordan Spieth","Sungjae Im"],"b":"Mason Howell"},{"n":"Carter Zenk","w":279,"p":["Sepp Straka","Nicolas Echavarria","Adam Scott","Jake Knapp"],"b":"Ethan Fang"},{"n":"Jonathan Oancia","w":277,"p":["Ludvig Aberg","Jon Rahm","Jason Day","Jordan Spieth"],"b":"Fred Couples"},{"n":"Kat Heston","w":278,"p":["Xander Schauffele","Ludvig Aberg","Brooks Koepka","Corey Conners"],"b":"Vijay Singh"},{"n":"Spencer Grant","w":276,"p":["Bryson DeChambeau","Jon Rahm","Viktor Hovland","Aldrich Potgieter"],"b":"Vijay Singh"},{"n":"George Sloan","w":277,"p":["Collin Morikawa","Ludvig Aberg","Corey Conners","Max Homa"],"b":"Fred Couples"},{"n":"Brian Waldie","w":274,"p":["Robert MacIntyre","Ludvig Aberg","Kristoffer Reitan","Max Homa"],"b":"Fred Couples"},{"n":"John Turley","w":268,"p":["Matt Fitzpatrick","Russell Henley","Adam Scott","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Lise Swanepoel","w":276,"p":["Matt Fitzpatrick","Bryson DeChambeau","Tom McKibbin","Jake Knapp"],"b":"Ethan Fang"},{"n":"Bonnie Brendle","w":274,"p":["Ludvig Aberg","Jon Rahm","Corey Conners","Casey Jarvis"],"b":"Fred Couples"},{"n":"Andrew McElveen","w":273,"p":["Bryson DeChambeau","Jason Day","Justin Rose","Sungjae Im"],"b":"Mason Howell"},{"n":"Matt Shanahan","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Jason S. Miller","w":276,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"Chris Haynes","w":278,"p":["Matt Fitzpatrick","Jon Rahm","Corey Conners","Max Homa"],"b":"Mason Howell"},{"n":"John Dilger","w":273,"p":["Ludvig Aberg","Jon Rahm","Corey Conners","Adam Scott"],"b":"Fifa Laopakdee"},{"n":"Gregg Ceman","w":273,"p":["Scottie Scheffler","Patrick Reed","Cameron Smith","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Mark Allmond","w":274,"p":["Bryson DeChambeau","Akshay Bhatia","Jordan Spieth","Shane Lowry"],"b":"Vijay Singh"},{"n":"Gavin McGinnis","w":268,"p":["Xander Schauffele","Casey Jarvis","Jon Rahm","Corey Conners"],"b":"Mason Howell"},{"n":"Julia Manseau-Toth","w":277,"p":["Rory McIlroy","Jon Rahm","Jordan Spieth","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Cassidy Manseau-Toth","w":278,"p":["Ludvig Aberg","Viktor Hovland","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"Stephen Moshen","w":274,"p":["Ludvig Aberg","Akshay Bhatia","Bryson DeChambeau","Brooks Koepka"],"b":"Mason Howell"},{"n":"Margaret Gerdes","w":277,"p":["Ludvig Aberg","Min Woo Lee","Sungjae Im","Shane Lowry"],"b":"Brandon Holtz"},{"n":"Chris Godfrey","w":276,"p":["Matt Fitzpatrick","Bryson DeChambeau","Jordan Spieth","Gary Woodland"],"b":"Vijay Singh"},{"n":"Kevin Hess","w":278,"p":["Jon Rahm","Bryson DeChambeau","Patrick Reed","Sungjae Im"],"b":"Fred Couples"},{"n":"David Renski","w":279,"p":["Bryson DeChambeau","Patrick Cantlay","Adam Scott","Corey Conners"],"b":"Vijay Singh"},{"n":"Andrew Yeast","w":278,"p":["Xander Schauffele","Harris English","Jake Knapp","Brooks Koepka"],"b":"Mason Howell"},{"n":"Jason P. Miller","w":271,"p":["Ludvig Aberg","Bryson DeChambeau","Jason Day","Cameron Smith"],"b":"Fred Couples"},{"n":"Garret Fassett","w":275,"p":["Bryson DeChambeau","Shane Lowry","Hideki Matsuyama","Sungjae Im"],"b":"Angel Cabrera"},{"n":"Zach White","w":277,"p":["Justin Rose","Patrick Reed","Adam Scott","Jordan Spieth"],"b":"Fred Couples"},{"n":"Matthew O'Connell","w":275,"p":["Aldrich Potgieter","Max Homa","Cameron Young","Bryson DeChambeau"],"b":"Jackson Herrington"},{"n":"Brandon Young","w":275,"p":["Cameron Smith","Jon Rahm","Ludvig Aberg","Bryson DeChambeau"],"b":"Vijay Singh"},{"n":"James McGuire","w":275,"p":["Scottie Scheffler","Bryson DeChambeau","Cameron Smith","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"CJ Gannon","w":274,"p":["Scottie Scheffler","Corey Conners","Jordan Spieth","Cameron Smith"],"b":"Fred Couples"},{"n":"Charlie Whyte","w":294,"p":["Akshay Bhatia","Patrick Reed","Jason Day","Corey Conners"],"b":"Mason Howell"},{"n":"Hunter Smith","w":277,"p":["Jon Rahm","Adam Scott","Hideki Matsuyama","Brooks Koepka"],"b":"Mike Weir"},{"n":"Mark Moyer","w":278,"p":["Viktor Hovland","Brooks Koepka","Si Woo Kim","Jacob Bridgeman"],"b":"Ethan Fang"},{"n":"Ben Wolfe","w":276,"p":["Ludvig Aberg","Jon Rahm","Jason Day","Adam Scott"],"b":"Mason Howell"},{"n":"Kenneth Patterson","w":277,"p":["Jordan Spieth","Jason Day","Patrick Reed","Justin Thomas"],"b":"Mike Weir"},{"n":"Patrick Plank","w":277,"p":["Scottie Scheffler","Jordan Spieth","Sungjae Im","Max Homa"],"b":"Fred Couples"},{"n":"Zach Stafford","w":274,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Cameron Smith"],"b":"Mason Howell"},{"n":"Jonah Paul","w":277,"p":["Jon Rahm","Xander Schauffele","Cameron Smith","Shane Lowry"],"b":"Mason Howell"},{"n":"Matt Wennmaker","w":276,"p":["Jake Knapp","Corey Conners","Patrick Reed","Si Woo Kim"],"b":"Mason Howell"},{"n":"Matthew Myers","w":273,"p":["Max Homa","Maverick McNealy","Ludvig Aberg","Bryson DeChambeau"],"b":"Vijay Singh"},{"n":"Maggie Whittaker","w":277,"p":["Rory McIlroy","Patrick Reed","Jordan Spieth","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Patrick Grove","w":278,"p":["Xander Schauffele","Jon Rahm","Nicolai Hojgaard","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Blake Brawley","w":278,"p":["Scottie Scheffler","Jon Rahm","Brooks Koepka","Cameron Smith"],"b":"Fred Couples"},{"n":"Brian Thompson","w":265,"p":["Chris Gotterup","Gary Woodland","Min Woo Lee","Brian Harman"],"b":"Fred Couples"},{"n":"Tobias Pettersen","w":276,"p":["Viktor Hovland","Jon Rahm","Patrick Cantlay","Adam Scott"],"b":"Mason Howell"},{"n":"John Ker","w":277,"p":["Bryson DeChambeau","Jon Rahm","Ludvig Aberg","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Yotam Auz","w":278,"p":["Jordan Spieth","Max Homa","Scottie Scheffler","Corey Conners"],"b":"Jackson Herrington"},{"n":"Kris Hourin","w":276,"p":["Xander Schauffele","Corey Conners","Ludvig Aberg","Cameron Smith"],"b":"Ethan Fang"},{"n":"Earnest Kong","w":277,"p":["Patrick Reed","Jon Rahm","Nicolai Hojgaard","Adam Scott"],"b":"Mason Howell"},{"n":"Samuel Fishburn","w":279,"p":["Jon Rahm","Sam Burns","Jake Knapp","Patrick Cantlay"],"b":"Mason Howell"},{"n":"Kevin Kern","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Logan Shortall","w":279,"p":["Xander Schauffele","Bryson DeChambeau","Gary Woodland","Jordan Spieth"],"b":"Mason Howell"},{"n":"Jason Albanese","w":274,"p":["Ludvig Aberg","Bryson DeChambeau","Brooks Koepka","Jon Rahm"],"b":"Mason Howell"},{"n":"Solomon Hughes","w":273,"p":["Rory McIlroy","Patrick Cantlay","Jordan Spieth","Sungjae Im"],"b":"Fred Couples"},{"n":"Derek Nicholson","w":275,"p":["Jon Rahm","Nicolai Hojgaard","Corey Conners","Sungjae Im"],"b":"Mason Howell"},{"n":"Jordan Cafritz","w":279,"p":["Max Homa","Ludvig Aberg","Sam Burns","Brooks Koepka"],"b":"Jose Maria Olazabal"},{"n":"Cooper Woodham","w":279,"p":["Cameron Young","Patrick Reed","Sungjae Im","Brooks Koepka"],"b":"Mason Howell"},{"n":"Anthony Giletto","w":272,"p":["Ludvig Aberg","Adam Scott","Chris Gotterup","Gary Woodland"],"b":"Mason Howell"},{"n":"Connor wern","w":276,"p":["Cameron Young","Bryson DeChambeau","Jordan Spieth","Cameron Smith"],"b":"Mason Howell"},{"n":"Tara Hourin","w":276,"p":["Rory McIlroy","Shane Lowry","Brooks Koepka","Jake Knapp"],"b":"Vijay Singh"},{"n":"Cullen Perron","w":276,"p":["Jason Day","Patrick Reed","Akshay Bhatia","Jordan Spieth"],"b":"Brandon Holtz"},{"n":"Hunter Otteni","w":277,"p":["Bryson DeChambeau","Patrick Reed","Jon Rahm","Brooks Koepka"],"b":"Brandon Holtz"},{"n":"Nora Hourin","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Alex Bergen","w":275,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"BJ Smith","w":276,"p":["Justin Rose","Patrick Reed","Patrick Cantlay","Cameron Smith"],"b":"Vijay Singh"},{"n":"Nate Hedrington","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"Nancy Roberts","w":276,"p":["Ludvig Aberg","Akshay Bhatia","Shane Lowry","Sungjae Im"],"b":"Jose Maria Olazabal"},{"n":"Brandon Hallett","w":273,"p":["Collin Morikawa","Ludvig Aberg","Corey Conners","Brooks Koepka"],"b":"Fred Couples"},{"n":"David Burke","w":278,"p":["Matt Fitzpatrick","Chris Gotterup","Gary Woodland","Wyndham Clark"],"b":"Mason Howell"},{"n":"Michael Mellor","w":275,"p":["Tommy Fleetwood","Bryson DeChambeau","Jordan Spieth","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Ryan Panich","w":275,"p":["Ludvig Aberg","Si Woo Kim","Jake Knapp","Adam Scott"],"b":"Angel Cabrera"},{"n":"Bryan Nelson","w":275,"p":["Rory McIlroy","Bryson DeChambeau","Ryan Fox","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Kevin Ginty","w":273,"p":["Bryson DeChambeau","Ludvig Aberg","Jon Rahm","Cameron Smith"],"b":"Mateo Pulcini"},{"n":"Nick Cortese","w":279,"p":["Xander Schauffele","Patrick Reed","Aldrich Potgieter","Michael Kim"],"b":"Brandon Holtz"},{"n":"Megan West","w":277,"p":["Xander Schauffele","Hideki Matsuyama","Corey Conners","Brooks Koepka"],"b":"Brandon Holtz"},{"n":"Rich Berke","w":277,"p":["Rory McIlroy","Jon Rahm","Jordan Spieth","Brooks Koepka"],"b":"Fred Couples"},{"n":"Alex Heston","w":277,"p":["Bryson DeChambeau","Ludvig Aberg","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Brian Stehn","w":276,"p":["Ludvig Aberg","Viktor Hovland","Shane Lowry","Sungjae Im"],"b":"Jackson Herrington"},{"n":"James McAlary","w":276,"p":["Xander Schauffele","Ludvig Aberg","Corey Conners","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Caitlin Wolfe","w":273,"p":["Tommy Fleetwood","Bryson DeChambeau","Jordan Spieth","Brooks Koepka"],"b":"Mason Howell"},{"n":"Jackie O'Hara","w":278,"p":["Ludvig Aberg","Shane Lowry","Nicolai Hojgaard","Gary Woodland"],"b":"Brandon Holtz"},{"n":"Paul Giordano","w":272,"p":["Bryson DeChambeau","Jon Rahm","Jason Day","Corey Conners"],"b":"Fred Couples"},{"n":"John Cressman","w":273,"p":["Akshay Bhatia","Matt Fitzpatrick","Sam Burns","Cameron Smith"],"b":"Fred Couples"},{"n":"Brewer Carter","w":278,"p":["Jon Rahm","Jordan Spieth","Max Homa","Rory McIlroy"],"b":"Mason Howell"},{"n":"Dan Yost","w":276,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Sungjae Im"],"b":"Fred Couples"},{"n":"Matthew Elias","w":275,"p":["Bryson DeChambeau","Xander Schauffele","Adam Scott","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Logan Walraven","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Ty Kempf","w":274,"p":["Jon Rahm","Bryson DeChambeau","Akshay Bhatia","Sungjae Im"],"b":"Fred Couples"},{"n":"Thomas McMahon","w":279,"p":["Bryson DeChambeau","Sam Burns","Daniel Berger","Corey Conners"],"b":"Mateo Pulcini"},{"n":"Dave Haggerty","w":277,"p":["Tommy Fleetwood","Shane Lowry","Jason Day","Cameron Smith"],"b":"Fred Couples"},{"n":"Jason Nichols","w":276,"p":["Ludvig Aberg","Akshay Bhatia","Bryson DeChambeau","Brooks Koepka"],"b":"Mason Howell"},{"n":"Juliet Elias","w":286,"p":["Scottie Scheffler","Bryson DeChambeau","Max Homa","Brooks Koepka"],"b":"Mason Howell"},{"n":"Mike Mason","w":275,"p":["Ludvig Aberg","Hideki Matsuyama","Jason Day","Tom McKibbin"],"b":"Ethan Fang"},{"n":"Adam Bergen","w":274,"p":["Xander Schauffele","Shane Lowry","Bryson DeChambeau","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Jack Thompson","w":280,"p":["Ludvig Aberg","Corey Conners","Jon Rahm","Sungjae Im"],"b":"Fred Couples"},{"n":"Shay Zilvitis","w":267,"p":["Ludvig Aberg","Viktor Hovland","Jon Rahm","Brooks Koepka"],"b":"Fred Couples"},{"n":"Josh Swartout","w":274,"p":["Robert MacIntyre","Min Woo Lee","Corey Conners","Sungjae Im"],"b":"Angel Cabrera"},{"n":"Matt Walls","w":273,"p":["Bryson DeChambeau","Jon Rahm","Sungjae Im","Jordan Spieth"],"b":"Fred Couples"},{"n":"Chris Motta","w":274,"p":["Patrick Reed","Min Woo Lee","Jon Rahm","Sungjae Im"],"b":"Mike Weir"},{"n":"Clint Ritter","w":276,"p":["Bryson DeChambeau","Akshay Bhatia","Jason Day","Jake Knapp"],"b":"Fred Couples"},{"n":"Jacob Erisman","w":276,"p":["Sam Burns","Akshay Bhatia","Sungjae Im","Ludvig Aberg"],"b":"Ethan Fang"},{"n":"Sarah Erisman","w":276,"p":["Matt Fitzpatrick","Robert MacIntyre","Gary Woodland","Brooks Koepka"],"b":"Fred Couples"},{"n":"Sean Kern","w":278,"p":["Min Woo Lee","Hideki Matsuyama","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"Megan Doone","w":276,"p":["Xander Schauffele","Justin Rose","Rasmus Hojgaard","Cameron Smith"],"b":"Mason Howell"},{"n":"Warren Stehn","w":277,"p":["Cameron Young","Akshay Bhatia","Brooks Koepka","Cameron Smith"],"b":"Vijay Singh"},{"n":"Reece Leistikow","w":284,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Riley Riley","w":280,"p":["Collin Morikawa","Russell Henley","Adam Scott","Sungjae Im"],"b":"Fred Couples"},{"n":"Katie O'Hara","w":280,"p":["Chris Gotterup","Jake Knapp","Hideki Matsuyama","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Becca Moyer","w":279,"p":["Xander Schauffele","Jon Rahm","Corey Conners","Sungjae Im"],"b":"Fifa Laopakdee"},{"n":"Philip D. Arrigo","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Akshay Bhatia","Cameron Smith"],"b":"Fifa Laopakdee"},{"n":"Scott Dorman","w":278,"p":["Xander Schauffele","Ludvig Aberg","Brooks Koepka","Corey Conners"],"b":"Mateo Pulcini"},{"n":"Lindsey Moon","w":272,"p":["Scottie Scheffler","Tom McKibbin","Shane Lowry","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Jason Ross","w":279,"p":["Ludvig Aberg","Patrick Reed","Corey Conners","Jordan Spieth"],"b":"Mason Howell"},{"n":"Kathleen Adame","w":274,"p":["Justin Rose","Bryson DeChambeau","Corey Conners","Brooks Koepka"],"b":"Fred Couples"},{"n":"Ashley Frishkorn","w":275,"p":["Justin Rose","Bryson DeChambeau","Adam Scott","Jordan Spieth"],"b":"Ethan Fang"},{"n":"Cody Daeschner","w":278,"p":["Jon Rahm","Xander Schauffele","Corey Conners","Sungjae Im"],"b":"Vijay Singh"},{"n":"Jason Kates","w":281,"p":["Xander Schauffele","Bryson DeChambeau","Corey Conners","Sungjae Im"],"b":"Vijay Singh"},{"n":"Patrick L","w":276,"p":["Patrick Reed","Bryson DeChambeau","Ludvig Aberg","Brooks Koepka"],"b":"Mason Howell"},{"n":"Kyle Frishkorn","w":277,"p":["Robert MacIntyre","Xander Schauffele","Harry Hall","Brooks Koepka"],"b":"Ethan Fang"},{"n":"John Lewis","w":276,"p":["J.J. Spaun","Justin Thomas","Wyndham Clark","Cameron Smith"],"b":"Fred Couples"},{"n":"Chandler Hammett","w":275,"p":["Ludvig Aberg","Jon Rahm","Brooks Koepka","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Mitch Moon","w":271,"p":["Ludvig Aberg","Akshay Bhatia","Jon Rahm","Cameron Smith"],"b":"Ethan Fang"},{"n":"Ross Fickessen","w":274,"p":["Ludvig Aberg","Jon Rahm","Corey Conners","Adam Scott"],"b":"Fred Couples"},{"n":"Sean Riley","w":279,"p":["Ludvig Aberg","Jon Rahm","Akshay Bhatia","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Holden Miller","w":277,"p":["Ludvig Aberg","Akshay Bhatia","Michael Kim","Gary Woodland"],"b":"Ethan Fang"},{"n":"Anna Berke","w":274,"p":["Ludvig Aberg","Jon Rahm","Corey Conners","Sungjae Im"],"b":"Fred Couples"},{"n":"Corey Allen","w":276,"p":["Rory McIlroy","Si Woo Kim","Adam Scott","Brooks Koepka"],"b":"Fred Couples"},{"n":"Patti Boyett","w":276,"p":["Jon Rahm","Corey Conners","Sungjae Im","Xander Schauffele"],"b":"Jackson Herrington"},{"n":"Chris Lawshe","w":275,"p":["Hideki Matsuyama","Jon Rahm","Brooks Koepka","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Matthew Whyte","w":278,"p":["Ludvig Aberg","Bryson DeChambeau","Jason Day","Gary Woodland"],"b":"Mason Howell"},{"n":"Tony Ausick","w":277,"p":["Bryson DeChambeau","Scottie Scheffler","Brooks Koepka","Max Homa"],"b":"Mason Howell"},{"n":"Justine Whyte","w":276,"p":["Matt Fitzpatrick","Jon Rahm","Rasmus Hojgaard","Jordan Spieth"],"b":"Brandon Holtz"},{"n":"Carl Ernst","w":276,"p":["Bryson DeChambeau","Justin Rose","Max Greyserman","Rasmus Hojgaard"],"b":"Jackson Herrington"},{"n":"Tommy Noble","w":276,"p":["Rory McIlroy","Bryson DeChambeau","Jordan Spieth","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Reilley Nelson","w":268,"p":["Scottie Scheffler","Jason Day","Adam Scott","Max Homa"],"b":"Vijay Singh"},{"n":"Joan Todd","w":277,"p":["Scottie Scheffler","Jason Day","Rasmus Hojgaard","Brooks Koepka"],"b":"Brandon Holtz"},{"n":"Philipp Perzl","w":277,"p":["Jon Rahm","Russell Henley","Corey Conners","Nick Taylor"],"b":"Ethan Fang"},{"n":"Mike Freeman","w":277,"p":["Xander Schauffele","Bryson DeChambeau","Adam Scott","Jordan Spieth"],"b":"Jackson Herrington"},{"n":"Justin Farrell","w":275,"p":["Bryson DeChambeau","Jon Rahm","Jason Day","Corey Conners"],"b":"Mason Howell"},{"n":"Kriss Nelson","w":276,"p":["Justin Rose","Matt Fitzpatrick","Harry Hall","Dustin Johnson"],"b":"Angel Cabrera"},{"n":"Marc Vollo","w":278,"p":["Jacob Bridgeman","Bryson DeChambeau","Patrick Cantlay","Wyndham Clark"],"b":"Fifa Laopakdee"},{"n":"Beka Nelson","w":273,"p":["Rory McIlroy","Hideki Matsuyama","Sungjae Im","Cameron Smith"],"b":"Mateo Pulcini"},{"n":"Hillary Nelson","w":277,"p":["Tommy Fleetwood","Bryson DeChambeau","Jordan Spieth","Cameron Smith"],"b":"Mason Howell"},{"n":"Hampton Clark","w":273,"p":["Jon Rahm","Bryson DeChambeau","Ludvig Aberg","Cameron Smith"],"b":"Vijay Singh"},{"n":"Dan Freeman","w":280,"p":["Ludvig Aberg","Hideki Matsuyama","Patrick Cantlay","Max Homa"],"b":"Vijay Singh"},{"n":"Paul/Owen Gannon","w":276,"p":["Rory McIlroy","Jon Rahm","Dustin Johnson","Adam Scott"],"b":"Fred Couples"},{"n":"Dax Mattox","w":276,"p":["Xander Schauffele","Patrick Cantlay","Jake Knapp","Gary Woodland"],"b":"Mason Howell"},{"n":"Robert Hahne","w":280,"p":["Matt McCarty","Corey Conners","Jon Rahm","Akshay Bhatia"],"b":"Mason Howell"},{"n":"Angela Ding","w":275,"p":["Jason Day","Brian Harman","Patrick Reed","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Heston Wesley","w":278,"p":["Corey Conners","Jordan Spieth","Adam Scott","Xander Schauffele"],"b":"Ethan Fang"},{"n":"Chris Lavoie","w":277,"p":["Xander Schauffele","Wyndham Clark","Ludvig Aberg","Adam Scott"],"b":"Angel Cabrera"},{"n":"Bob Lannin","w":276,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Mike Salmonese","w":275,"p":["Xander Schauffele","Jon Rahm","Jordan Spieth","Sungjae Im"],"b":"Fred Couples"},{"n":"Tom Lannin","w":277,"p":["Cameron Young","Jon Rahm","Adam Scott","Cameron Smith"],"b":"Mateo Pulcini"},{"n":"Jill Lannin","w":278,"p":["Tommy Fleetwood","Jon Rahm","Adam Scott","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Andy Freyman","w":276,"p":["Scottie Scheffler","Corey Conners","Sungjae Im","Brooks Koepka"],"b":"Fred Couples"},{"n":"Dan Limbacher","w":276,"p":["Chris Gotterup","Akshay Bhatia","Jake Knapp","Gary Woodland"],"b":"Mason Howell"},{"n":"Aidan Waldrum","w":278,"p":["Rory McIlroy","Hideki Matsuyama","Sungjae Im","Max Homa"],"b":"Fred Couples"},{"n":"Bobby Lugiano","w":277,"p":["Ludvig Aberg","Patrick Reed","Bryson DeChambeau","Max Homa"],"b":"Mason Howell"},{"n":"Cody Denham","w":276,"p":["Ludvig Aberg","Jon Rahm","Nicolai Hojgaard","Davis Riley"],"b":"Ethan Fang"},{"n":"Mike Plank","w":277,"p":["Scottie Scheffler","Bryson DeChambeau","Brooks Koepka","Cameron Smith"],"b":"Fred Couples"},{"n":"Robin Brendle","w":280,"p":["Xander Schauffele","Corey Conners","Shane Lowry","Gary Woodland"],"b":"Mason Howell"},{"n":"Justin Pavloski","w":279,"p":["Scottie Scheffler","Corey Conners","Sungjae Im","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Andrew Wagner","w":280,"p":["Ludvig Aberg","Justin Rose","Andrew Novak","Max Homa"],"b":"Ethan Fang"},{"n":"David Sotelo","w":283,"p":["Brooks Koepka","Bryson DeChambeau","Scottie Scheffler","Max Homa"],"b":"Fred Couples"},{"n":"Matthew Dorris","w":276,"p":["Rory McIlroy","Corey Conners","Shane Lowry","Cameron Smith"],"b":"Fifa Laopakdee"},{"n":"Daniel Schlatterer","w":280,"p":["Bryson DeChambeau","Viktor Hovland","Brian Campbell","Gary Woodland"],"b":"Mateo Pulcini"},{"n":"Brady Goodman","w":273,"p":["Scottie Scheffler","Jordan Spieth","Adam Scott","Sungjae Im"],"b":"Fred Couples"},{"n":"Matt Graves","w":278,"p":["Xander Schauffele","Jon Rahm","Corey Conners","Sungjae Im"],"b":"Mason Howell"},{"n":"Charlie Delayo","w":276,"p":["Cameron Young","Jon Rahm","Adam Scott","Brooks Koepka"],"b":"Mason Howell"},{"n":"Alex Tsakiris","w":275,"p":["Jon Rahm","Patrick Reed","Sungjae Im","Corey Conners"],"b":"Fred Couples"},{"n":"Nick Freyman","w":275,"p":["Cameron Young","Brooks Koepka","Bryson DeChambeau","Jordan Spieth"],"b":"Mike Weir"},{"n":"Gable Richardella","w":275,"p":["Xander Schauffele","Collin Morikawa","Sami Valimaki","Max Homa"],"b":"Jose Maria Olazabal"},{"n":"Nathan Nottrott","w":272,"p":["Akshay Bhatia","Jon Rahm","Bryson DeChambeau","Wyndham Clark"],"b":"Mateo Pulcini"},{"n":"Scott Reiman","w":280,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Kaitlyn Nottrott","w":275,"p":["Scottie Scheffler","Michael Kim","Cameron Smith","Jordan Spieth"],"b":"Mason Howell"},{"n":"Dustin Gabert","w":279,"p":["Bryson DeChambeau","Jon Rahm","Hideki Matsuyama","Max Homa"],"b":"Fred Couples"},{"n":"Jana Yost","w":274,"p":["Hideki Matsuyama","Min Woo Lee","Nicolai Hojgaard","Casey Jarvis"],"b":"Fred Couples"},{"n":"Lauren McNair","w":276,"p":["Ludvig Aberg","Jon Rahm","Max Homa","Patrick Reed"],"b":"Mason Howell"},{"n":"Bob Matthews","w":277,"p":["Justin Rose","Bryson DeChambeau","Shane Lowry","Brooks Koepka"],"b":"Mike Weir"},{"n":"Devyn DeMello","w":266,"p":["Ludvig Aberg","Viktor Hovland","Jason Day","Jordan Spieth"],"b":"Mike Weir"},{"n":"Tom Skulski","w":276,"p":["Bryson DeChambeau","Corey Conners","Xander Schauffele","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Blake Clark","w":279,"p":["Bryson DeChambeau","Xander Schauffele","Jake Knapp","Rasmus Neergaard-Petersen"],"b":"Mason Howell"},{"n":"Travis French","w":278,"p":["Nicolai Hojgaard","Brooks Koepka","Jon Rahm","Matt Fitzpatrick"],"b":"Vijay Singh"},{"n":"Bryan Wilson","w":284,"p":["Bryson DeChambeau","Max Homa","Scottie Scheffler","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Beth Reese","w":265,"p":["Nicolai Hojgaard","Wyndham Clark","Chris Gotterup","Min Woo Lee"],"b":"Fifa Laopakdee"},{"n":"Shannon Nelson","w":274,"p":["Bryson DeChambeau","Ludvig Aberg","Akshay Bhatia","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Jack Kisor","w":278,"p":["Rory McIlroy","Jon Rahm","Jordan Spieth","Dustin Johnson"],"b":"Fred Couples"},{"n":"Andrew Poly Polonec","w":274,"p":["Scottie Scheffler","Jon Rahm","Max Homa","Brooks Koepka"],"b":"Mason Howell"},{"n":"Brendan Cronin","w":274,"p":["Jake Knapp","Justin Rose","Adam Scott","Nicolai Hojgaard"],"b":"Mason Howell"},{"n":"Matthew Palmieri","w":278,"p":["Tommy Fleetwood","Matt Fitzpatrick","Dustin Johnson","Cameron Smith"],"b":"Ethan Fang"},{"n":"Brady Moore","w":278,"p":["Maverick McNealy","Matt Fitzpatrick","Gary Woodland","Adam Scott"],"b":"Jackson Herrington"},{"n":"Alyssa Randolph","w":273,"p":["Xander Schauffele","Ludvig Aberg","Jason Day","Max Homa"],"b":"Ethan Fang"},{"n":"Ken Vanderpool","w":273,"p":["Tommy Fleetwood","Brooks Koepka","Bryson DeChambeau","Adam Scott"],"b":"Fifa Laopakdee"},{"n":"Linda Jeffery","w":272,"p":["Cameron Smith","Brooks Koepka","Scottie Scheffler","Akshay Bhatia"],"b":"Mason Howell"},{"n":"Hank","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Shane Lowry","Aldrich Potgieter"],"b":"Vijay Singh"},{"n":"Jeff Colatruglio","w":276,"p":["Hideki Matsuyama","Bryson DeChambeau","Brooks Koepka","Min Woo Lee"],"b":"Vijay Singh"},{"n":"Rosie Colatruglio","w":282,"p":["Collin Morikawa","Patrick Reed","Ryan Fox","Tom McKibbin"],"b":"Angel Cabrera"},{"n":"Jim Lederer","w":269,"p":["Hideki Matsuyama","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Jeff Thomley","w":279,"p":["Ludvig Aberg","Jon Rahm","Corey Conners","Jordan Spieth"],"b":"Ethan Fang"},{"n":"Brenton Hochstetler","w":278,"p":["Ludvig Aberg","Akshay Bhatia","Bryson DeChambeau","Brooks Koepka"],"b":"Mason Howell"},{"n":"Dan Doell","w":276,"p":["Xander Schauffele","Hideki Matsuyama","Sungjae Im","Wyndham Clark"],"b":"Fred Couples"},{"n":"Matthew Wetzel","w":275,"p":["Xander Schauffele","Bryson DeChambeau","Brooks Koepka","Adam Scott"],"b":"Fred Couples"},{"n":"Karen Colatruglio","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Vijay Singh"},{"n":"McKenzie Parks","w":280,"p":["Bryson DeChambeau","Jon Rahm","Jason Day","Corey Conners"],"b":"Mason Howell"},{"n":"Mike Colatruglio","w":276,"p":["Bryson DeChambeau","Jon Rahm","Ludvig Aberg","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Jayce Carsten","w":275,"p":["Bryson DeChambeau","Keegan Bradley","Jon Rahm","Cameron Smith"],"b":"Mason Howell"},{"n":"Brendan Kern","w":278,"p":["Scottie Scheffler","Brooks Koepka","Jon Rahm","Cameron Smith"],"b":"Fred Couples"},{"n":"Logan Rasmussen","w":276,"p":["Ludvig Aberg","Patrick Reed","Bryson DeChambeau","Brooks Koepka"],"b":"Mason Howell"},{"n":"Darren Nelson","w":277,"p":["Cameron Young","Casey Jarvis","Marco Penge","Gary Woodland"],"b":"Mason Howell"},{"n":"Betsy Crossland","w":272,"p":["Ludvig Aberg","Jon Rahm","Bryson DeChambeau","Brooks Koepka"],"b":"Brandon Holtz"},{"n":"Thomas Bogle","w":276,"p":["Ludvig Aberg","Jon Rahm","Bryson DeChambeau","Cameron Smith"],"b":"Brandon Holtz"},{"n":"Alli Doell","w":277,"p":["Robert MacIntyre","Jason Day","Jordan Spieth","Tyrrell Hatton"],"b":"Angel Cabrera"},{"n":"Phil Poupore","w":276,"p":["Xander Schauffele","Jon Rahm","Jake Knapp","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Jeff Mellor","w":278,"p":["Xander Schauffele","Hideki Matsuyama","Jordan Spieth","Brooks Koepka"],"b":"Brandon Holtz"},{"n":"Ryan Kitchen","w":273,"p":["Sungjae Im","Justin Rose","Jordan Spieth","Ludvig Aberg"],"b":"Fred Couples"},{"n":"Catie Hochstetler","w":277,"p":["Justin Rose","Bryson DeChambeau","Shane Lowry","Brooks Koepka"],"b":"Mason Howell"},{"n":"Andrew Liao","w":282,"p":["Ludvig Aberg","Jason Day","Tyrrell Hatton","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Nick Popolizio","w":276,"p":["Jordan Spieth","Justin Rose","Jon Rahm","Gary Woodland"],"b":"Jackson Herrington"},{"n":"Alan Vestergaard","w":274,"p":["Justin Rose","Si Woo Kim","Adam Scott","Jordan Spieth"],"b":"Ethan Fang"},{"n":"Doug Monty","w":275,"p":["Jon Rahm","Ludvig Aberg","Brooks Koepka","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Corey Bodden","w":277,"p":["Ludvig Aberg","Patrick Reed","Jon Rahm","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"David Wenck","w":276,"p":["Si Woo Kim","Cameron Smith","Tyrrell Hatton","Matt Fitzpatrick"],"b":"Mike Weir"},{"n":"Stephen DeGrazia","w":279,"p":["Max Homa","Brooks Koepka","Justin Rose","Collin Morikawa"],"b":"Fifa Laopakdee"},{"n":"Brandon Hochstetler","w":278,"p":["Ludvig Aberg","Corey Conners","Jon Rahm","Adam Scott"],"b":"Fred Couples"},{"n":"Matt Young","w":274,"p":["Scottie Scheffler","Jon Rahm","Brooks Koepka","Cameron Smith"],"b":"Angel Cabrera"},{"n":"Jamie Young","w":270,"p":["Xander Schauffele","Chris Gotterup","Sungjae Im","Max Homa"],"b":"Mason Howell"},{"n":"Zack Gerdes","w":278,"p":["Jon Rahm","Patrick Reed","Ludvig Aberg","Max Homa"],"b":"Mason Howell"},{"n":"Sam Young","w":274,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Sungjae Im"],"b":"Mason Howell"},{"n":"Caila Roberts","w":279,"p":["Ludvig Aberg","Justin Rose","Adam Scott","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Hallie Young","w":275,"p":["Daniel Berger","Jordan Spieth","Patrick Reed","Jon Rahm"],"b":"Angel Cabrera"},{"n":"A.J. Donaldson","w":268,"p":["Cameron Young","Sepp Straka","Brooks Koepka","Cameron Smith"],"b":"Mason Howell"},{"n":"Justin Mellor","w":276,"p":["Matt Fitzpatrick","Bryson DeChambeau","Sergio Garcia","Tyrrell Hatton"],"b":"Ethan Fang"},{"n":"Silas Warming","w":275,"p":["Hideki Matsuyama","Kurt Kitayama","Jason Day","Corey Conners"],"b":"Mason Howell"},{"n":"Kurt Michel","w":274,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Geoff Pirkl","w":279,"p":["Xander Schauffele","Cameron Smith","Jon Rahm","Adam Scott"],"b":"Fred Couples"},{"n":"Albert Geniviva","w":275,"p":["Ludvig Aberg","Bryson DeChambeau","Viktor Hovland","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Adam Brueggman","w":279,"p":["Jon Rahm","Brooks Koepka","Robert MacIntyre","Nicolai Hojgaard"],"b":"Ethan Fang"},{"n":"Eli Ziegler","w":275,"p":["Xander Schauffele","Jon Rahm","Jordan Spieth","Adam Scott"],"b":"Fred Couples"},{"n":"Will Hellman","w":272,"p":["Bryson DeChambeau","Jordan Spieth","Marco Penge","Akshay Bhatia"],"b":"Mason Howell"},{"n":"Reuben Mast","w":275,"p":["Matt Fitzpatrick","Viktor Hovland","Jake Knapp","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Danielle Stathis","w":277,"p":["Ludvig Aberg","Shane Lowry","Keegan Bradley","Brooks Koepka"],"b":"Fred Couples"},{"n":"Thomas Wenck","w":278,"p":["Bryson DeChambeau","Robert MacIntyre","Shane Lowry","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Andrew Sackrison","w":266,"p":["Rory McIlroy","Gary Woodland","Jordan Spieth","Jason Day"],"b":"Fred Couples"},{"n":"Travis Judah","w":269,"p":["Ludvig Aberg","Bryson DeChambeau","Jason Day","Adam Scott"],"b":"Fred Couples"},{"n":"Tommy Freeman","w":276,"p":["Tyrrell Hatton","Akshay Bhatia","Bryson DeChambeau","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Stephanie Eberly","w":277,"p":["Xander Schauffele","Ludvig Aberg","Jordan Spieth","Sungjae Im"],"b":"Fifa Laopakdee"},{"n":"David Petrie","w":278,"p":["Ludvig Aberg","Bryson DeChambeau","Jake Knapp","Gary Woodland"],"b":"Mason Howell"},{"n":"Paige Poupore","w":274,"p":["Justin Rose","Hideki Matsuyama","Adam Scott","Sungjae Im"],"b":"Brandon Holtz"},{"n":"Matt Colatruglio","w":280,"p":["Bryson DeChambeau","Shane Lowry","Brooks Koepka","Justin Rose"],"b":"Fred Couples"},{"n":"Jared Jachino","w":278,"p":["Matt Fitzpatrick","Bryson DeChambeau","Adam Scott","Jordan Spieth"],"b":"Angel Cabrera"},{"n":"Kipton Colatruglio","w":275,"p":["Patrick Reed","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Colin DiMario","w":277,"p":["Xander Schauffele","Bryson DeChambeau","Wyndham Clark","Adam Scott"],"b":"Ethan Fang"},{"n":"Drew Brendle","w":271,"p":["Xander Schauffele","Nicolai Hojgaard","Jake Knapp","Jordan Spieth"],"b":"Ethan Fang"},{"n":"Jeff Lawshe","w":276,"p":["Jon Rahm","Ludvig Aberg","Brooks Koepka","Viktor Hovland"],"b":"Fred Couples"},{"n":"Case Colatruglio","w":275,"p":["Xander Schauffele","Ludvig Aberg","Ryan Fox","Max Homa"],"b":"Fifa Laopakdee"},{"n":"Vernon Roberts","w":273,"p":["Xander Schauffele","Bryson DeChambeau","Brooks Koepka","Shane Lowry"],"b":"Mateo Pulcini"},{"n":"Jordan Schmidt","w":279,"p":["Justin Rose","Jacob Bridgeman","Adam Scott","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Donald Sledz","w":283,"p":["Bryson DeChambeau","Min Woo Lee","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Harry Coleman","w":274,"p":["Brooks Koepka","Bryson DeChambeau","Viktor Hovland","Ludvig Aberg"],"b":"Ethan Fang"},{"n":"Mark Motta","w":281,"p":["Collin Morikawa","Xander Schauffele","Brooks Koepka","Jordan Spieth"],"b":"Mike Weir"},{"n":"Bobbi Colatruglio","w":279,"p":["Justin Rose","Hideki Matsuyama","Corey Conners","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Miller McCachern","w":276,"p":["Xander Schauffele","Patrick Reed","Adam Scott","Jordan Spieth"],"b":"Ethan Fang"},{"n":"Chase Pierce","w":280,"p":["Min Woo Lee","Jake Knapp","Corey Conners","Bryson DeChambeau"],"b":"Mason Howell"},{"n":"Hal Hansen","w":276,"p":["Jon Rahm","Ludvig Aberg","Patrick Reed","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Jason Colatruglio","w":277,"p":["Bryson DeChambeau","Jon Rahm","Adam Scott","Jordan Spieth"],"b":"Mason Howell"},{"n":"Jacob Kennedy","w":274,"p":["Jon Rahm","Si Woo Kim","Bryson DeChambeau","Sungjae Im"],"b":"Ethan Fang"},{"n":"JD Grimm","w":278,"p":["Matt Fitzpatrick","Xander Schauffele","Jordan Spieth","Brooks Koepka"],"b":"Fred Couples"},{"n":"Sadie Gruntmeir","w":275,"p":["Ludvig Aberg","Jordan Spieth","Justin Thomas","Adam Scott"],"b":"Ethan Fang"},{"n":"Rodney Grumbine","w":271,"p":["Xander Schauffele","Jon Rahm","Brian Harman","Rasmus Neergaard-Petersen"],"b":"Mike Weir"},{"n":"Owen Browning","w":278,"p":["Justin Rose","Xander Schauffele","Jordan Spieth","Brooks Koepka"],"b":"Mason Howell"},{"n":"Ashby  Alexander","w":269,"p":["Tommy Fleetwood","Justin Rose","Max Homa","Dustin Johnson"],"b":"Vijay Singh"},{"n":"Olivia Tan","w":280,"p":["Justin Rose","Bryson DeChambeau","Matt McCarty","Wyndham Clark"],"b":"Ethan Fang"},{"n":"Patrick Molloy","w":274,"p":["Tommy Fleetwood","Brooks Koepka","Bryson DeChambeau","Haotong Li"],"b":"Angel Cabrera"},{"n":"Colleen Kern","w":277,"p":["Bryson DeChambeau","Jon Rahm","Akshay Bhatia","Sungjae Im"],"b":"Mason Howell"},{"n":"Megan Saba","w":278,"p":["Justin Thomas","Bryson DeChambeau","Bubba Watson","Jon Rahm"],"b":"Fifa Laopakdee"},{"n":"Sal Saba","w":293,"p":["Shane Lowry","Min Woo Lee","Jason Day","Daniel Berger"],"b":"Fred Couples"},{"n":"Matthew Hale","w":280,"p":["Justin Rose","Jake Knapp","Ludvig Aberg","Max Homa"],"b":"Fred Couples"},{"n":"Rosie Davidson","w":277,"p":["Scottie Scheffler","Cameron Smith","Brooks Koepka","Akshay Bhatia"],"b":"Vijay Singh"},{"n":"Sean Garvin","w":279,"p":["Justin Rose","Xander Schauffele","Jordan Spieth","Max Homa"],"b":"Brandon Holtz"},{"n":"Torry Rees","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"Cathy Sledz","w":271,"p":["Jon Rahm","Corey Conners","Sungjae Im","Xander Schauffele"],"b":"Angel Cabrera"},{"n":"Ben Dygert","w":277,"p":["Bryson DeChambeau","Jon Rahm","Brooks Koepka","Ludvig Aberg"],"b":"Ethan Fang"},{"n":"Rowan Castrucci","w":277,"p":["Bryson DeChambeau","Jason Day","Jordan Spieth","Ben Griffin"],"b":"Mason Howell"},{"n":"Ryan Mellor","w":277,"p":["Min Woo Lee","Patrick Reed","Shane Lowry","Jordan Spieth"],"b":"Mike Weir"},{"n":"Thomas Darrow","w":275,"p":["Bryson DeChambeau","Patrick Reed","Jon Rahm","Brooks Koepka"],"b":"Mike Weir"},{"n":"Alex Guckes","w":277,"p":["Bryson DeChambeau","Jon Rahm","Ludvig Aberg","Cameron Smith"],"b":"Ethan Fang"},{"n":"Jared Pursiano","w":275,"p":["Xander Schauffele","Ludvig Aberg","Corey Conners","Max Homa"],"b":"Mason Howell"},{"n":"Michelle Saloomey","w":276,"p":["Sepp Straka","Kurt Kitayama","Brooks Koepka","Hideki Matsuyama"],"b":"Mateo Pulcini"},{"n":"Sarah Darrow","w":276,"p":["Justin Thomas","Keegan Bradley","Shane Lowry","Sungjae Im"],"b":"Fred Couples"},{"n":"Carson Budke","w":277,"p":["Bryson DeChambeau","Akshay Bhatia","Jordan Spieth","Sam Burns"],"b":"Jackson Herrington"},{"n":"Jack Furber","w":278,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Cameron Smith"],"b":"Fred Couples"},{"n":"Lissa Ingaldson","w":272,"p":["Collin Morikawa","Ludvig Aberg","Max Homa","Corey Conners"],"b":"Fred Couples"},{"n":"Blair Davidson","w":276,"p":["Ludvig Aberg","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Heesu Sin","w":277,"p":["Rory McIlroy","Bryson DeChambeau","Jordan Spieth","Max Homa"],"b":"Fred Couples"},{"n":"Kelsie Carlson","w":276,"p":["Collin Morikawa","Ludvig Aberg","Corey Conners","Max Homa"],"b":"Fred Couples"},{"n":"Shannon Brown","w":276,"p":["Collin Morikawa","Viktor Hovland","Rasmus Hojgaard","Jordan Spieth"],"b":"Jackson Herrington"},{"n":"Anthony Di Salvo","w":276,"p":["Bryson DeChambeau","Ludvig Aberg","Corey Conners","Sungjae Im"],"b":"Angel Cabrera"},{"n":"Madi Hearney","w":276,"p":["Brooks Koepka","Corey Conners","Collin Morikawa","Ludvig Aberg"],"b":"Mason Howell"},{"n":"Cody Davidson","w":279,"p":["Ludvig Aberg","Bryson DeChambeau","Brooks Koepka","Patrick Reed"],"b":"Mateo Pulcini"},{"n":"Bryce Ryman","w":280,"p":["Xander Schauffele","Jon Rahm","Corey Conners","Sungjae Im"],"b":"Ethan Fang"},{"n":"Spencer Ingaldson","w":271,"p":["Rory McIlroy","Xander Schauffele","Brooks Koepka","Charl Schwartzel"],"b":"Jose Maria Olazabal"},{"n":"Robert Carlson","w":274,"p":["Xander Schauffele","Gary Woodland","Cameron Smith","Matt Fitzpatrick"],"b":"Ethan Fang"},{"n":"Chris Budke","w":274,"p":["Xander Schauffele","Jon Rahm","Corey Conners","Sungjae Im"],"b":"Fred Couples"},{"n":"Kristy Motta","w":282,"p":["Collin Morikawa","Ludvig Aberg","Jordan Spieth","Cameron Smith"],"b":"Mateo Pulcini"},{"n":"Westin Wolfenden","w":279,"p":["Collin Morikawa","Ludvig Aberg","Jake Knapp","Brooks Koepka"],"b":"Ethan Fang"},{"n":"Rob Jansen","w":277,"p":["Ludvig Aberg","Bryson DeChambeau","Corey Conners","Jordan Spieth"],"b":"Fred Couples"},{"n":"Michael Berke","w":266,"p":["Jon Rahm","Bryson DeChambeau","Brooks Koepka","Ludvig Aberg"],"b":"Fred Couples"},{"n":"Kash Crawford","w":275,"p":["Bryson DeChambeau","Min Woo Lee","Tyrrell Hatton","Jordan Spieth"],"b":"Mason Howell"},{"n":"Travis King","w":274,"p":["Matt Fitzpatrick","Ludvig Aberg","Adam Scott","Sungjae Im"],"b":"Mason Howell"},{"n":"Michael Dudzinski","w":275,"p":["Ludvig Aberg","Bryson DeChambeau","Corey Conners","Jordan Spieth"],"b":"Fred Couples"},{"n":"Ryan Corbalis","w":277,"p":["Jon Rahm","Jordan Spieth","Matt Fitzpatrick","Brooks Koepka"],"b":"Vijay Singh"},{"n":"Griffin Snaza","w":281,"p":["Xander Schauffele","Ludvig Aberg","Corey Conners","Brooks Koepka"],"b":"Fred Couples"},{"n":"Latisha Tang","w":276,"p":["Hideki Matsuyama","Bryson DeChambeau","Jon Rahm","Brooks Koepka"],"b":"Fifa Laopakdee"},{"n":"Blake Kleinmeyer","w":275,"p":["Ludvig Aberg","Min Woo Lee","Jake Knapp","Adam Scott"],"b":"Mason Howell"},{"n":"Richelle Jansen","w":276,"p":["Xander Schauffele","Jon Rahm","Jason Day","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Keith VandenBroek","w":274,"p":["Ludvig Aberg","Viktor Hovland","Jon Rahm","Brooks Koepka"],"b":"Mason Howell"},{"n":"Hailey Hughes","w":278,"p":["Cameron Young","Adam Scott","Sungjae Im","Corey Conners"],"b":"Fred Couples"},{"n":"Andrea Cansfield","w":277,"p":["Cameron Young","Bryson DeChambeau","Jordan Spieth","Brooks Koepka"],"b":"Jackson Herrington"},{"n":"Chris Dillon","w":275,"p":["Russell Henley","Viktor Hovland","Shane Lowry","Brooks Koepka"],"b":"Angel Cabrera"},{"n":"Jim Post","w":274,"p":["Xander Schauffele","Bryson DeChambeau","Jason Day","Sungjae Im"],"b":"Ethan Fang"},{"n":"Andy Hathaway","w":281,"p":["Xander Schauffele","Patrick Reed","Nicolai Hojgaard","Brooks Koepka"],"b":"Mike Weir"},{"n":"Rob Coloney","w":264,"p":["Ludvig Aberg","Bryson DeChambeau","Sungjae Im","Patrick Cantlay"],"b":"Fred Couples"},{"n":"Dee Dee Colatruglio","w":284,"p":["Cameron Young","Jon Rahm","Sungjae Im","Brian Campbell"],"b":"Vijay Singh"},{"n":"Thomas Messina","w":274,"p":["Xander Schauffele","Bryson DeChambeau","Jake Knapp","Max Homa"],"b":"Mason Howell"},{"n":"Kyle Boardman","w":274,"p":["Xander Schauffele","Ludvig Aberg","Corey Conners","Max Homa"],"b":"Fred Couples"},{"n":"Jordan Alejandre","w":281,"p":["Patrick Reed","Akshay Bhatia","Ludvig Aberg","Max Homa"],"b":"Fifa Laopakdee"},{"n":"Ryan Kaminski","w":279,"p":["Jon Rahm","Akshay Bhatia","Corey Conners","Jordan Spieth"],"b":"Fred Couples"},{"n":"Kellen Clawson","w":277,"p":["Ben Griffin","Sam Burns","Jason Day","Jake Knapp"],"b":"Mason Howell"},{"n":"Clare Clawson","w":279,"p":["Bryson DeChambeau","Maverick McNealy","Sam Burns","Gary Woodland"],"b":"Mason Howell"}];
+
+const BONUS_PLAYERS = new Set([
+  "Angel Cabrera","Fred Couples","Jose Maria Olazabal","Vijay Singh","Mike Weir",
+  "Ethan Fang","Jackson Herrington","Brandon Holtz","Mason Howell","Fifa Laopakdee","Mateo Pulcini"
+]);
+
+const FIELD_SALARIES = {"Scottie Scheffler":300,"Rory McIlroy":250,"Cameron Young":250,"Tommy Fleetwood":250,"J.J. Spaun":250,"Matt Fitzpatrick":200,"Collin Morikawa":200,"Robert MacIntyre":200,"Justin Rose":200,"Xander Schauffele":200,"Chris Gotterup":175,"Russell Henley":175,"Sepp Straka":175,"Hideki Matsuyama":175,"Justin Thomas":175,"Ben Griffin":175,"Ludvig Aberg":175,"Jacob Bridgeman":175,"Alex Noren":175,"Harris English":175,"Akshay Bhatia":150,"Viktor Hovland":150,"Patrick Reed":150,"Bryson DeChambeau":150,"Min Woo Lee":150,"Keegan Bradley":150,"Maverick McNealy":150,"Si Woo Kim":150,"Ryan Gerard":150,"Jon Rahm":150,"Tyrrell Hatton":125,"Shane Lowry":125,"Sam Burns":125,"Kurt Kitayama":125,"Patrick Cantlay":125,"Nicolai Hojgaard":125,"Marco Penge":125,"Daniel Berger":125,"Aaron Rai":125,"Nicolas Echavarria":125,"Jason Day":100,"Jake Knapp":100,"Michael Kim":100,"Corey Conners":100,"Samuel Stevens":100,"Kristoffer Reitan":100,"Michael Brennan":100,"Andrew Novak":100,"Matt McCarty":100,"Brian Harman":100,"Ryan Fox":75,"Gary Woodland":75,"Adam Scott":75,"Sami Valimaki":75,"Rasmus Hojgaard":75,"Max Greyserman":75,"Jordan Spieth":75,"Harry Hall":75,"John Keefer":75,"Nick Taylor":75,"Rasmus Neergaard-Petersen":50,"Casey Jarvis":50,"Sungjae Im":50,"Aldrich Potgieter":50,"Wyndham Clark":50,"Haotong Li":50,"Tom McKibbin":50,"Brian Campbell":50,"Davis Riley":50,"Carlos Ortiz":50,"Max Homa":25,"Brooks Koepka":25,"Cameron Smith":25,"Zach Johnson":25,"Sergio Garcia":25,"Naoyuki Kataoka":25,"Danny Willett":25,"Charl Schwartzel":25,"Dustin Johnson":25,"Bubba Watson":25,"Angel Cabrera":0,"Fred Couples":0,"Jose Maria Olazabal":0,"Vijay Singh":0,"Mike Weir":0,"Ethan Fang":0,"Jackson Herrington":0,"Brandon Holtz":0,"Mason Howell":0,"Fifa Laopakdee":0,"Mateo Pulcini":0};
+
+// Name aliases for ESPN -> Pool matching
+const NAME_ALIASES = {
+  "sam stevens": "samuel stevens",
+  "johnny keefer": "john keefer",
+  "nico echavarria": "nicolas echavarria",
+  "sergio garcia": "sergio garcia",
+  "jose maria olazabal": "jose maria olazabal"
+};
+
+const PAYOUTS = [
+  { min: 1, max: 1, amount: 1200 },
+  { min: 2, max: 2, amount: 800 },
+  { min: 3, max: 3, amount: 500 },
+  { min: 4, max: 4, amount: 400 },
+  { min: 5, max: 5, amount: 250 },
+  { min: 6, max: 10, amount: 100 },
+  { min: 11, max: 15, amount: 75 },
+  { min: 16, max: 25, amount: 50 },
+  { min: 26, max: 35, amount: 35 },
+  { min: 36, max: 40, amount: 25 },
+  { min: 41, max: 41, amount: 10 }
+];
+
+function getPayout(rank) {
+  for (const p of PAYOUTS) {
+    if (rank >= p.min && rank <= p.max) return p.amount;
+  }
+  return 0;
+}
+
+const PAR = 72;
+const ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?tournamentId=401811941";
+const POLL_INTERVAL = 30000;
+
+// ===== NAME NORMALIZATION =====
+function normalizeName(name) {
+  if (!name) return "";
+  let n = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return NAME_ALIASES[n] || n;
+}
+
+// ===== SCORING ENGINE =====
+function parseRelativeScore(displayValue) {
+  if (!displayValue || displayValue === "E") return 0;
+  return -parseInt(displayValue, 10); // "-5" -> 5 (under par = positive), "+3" -> -3
+}
+
+function parseESPNData(apiData) {
+  const golfers = new Map();
+  if (!apiData?.events?.[0]?.competitions?.[0]?.competitors) return { golfers, eventStatus: null, roundNum: 0 };
+
+  const event = apiData.events[0];
+  const eventStatus = event.status?.type?.description || "Unknown";
+  const competitors = event.competitions[0].competitors;
+
+  // Find worst score per completed round (for WD/DQ/MC rule)
+  const worstScorePerRound = [0, 0, 0, 0];
+
+  for (const c of competitors) {
+    const name = c.athlete?.displayName || "";
+    const normalizedName = normalizeName(name);
+    const overallScore = c.score || "E";
+    const sortOrder = c.sortOrder || 999;
+
+    const rounds = [];
+    const roundLinescores = c.linescores || [];
+
+    for (let i = 0; i < 4; i++) {
+      const rd = roundLinescores[i];
+      if (!rd || rd.value === undefined || rd.value === null) {
+        rounds.push({ score: null, relToPar: 0, holesCompleted: 0, complete: false });
+      } else {
+        const innerHoles = rd.linescores || [];
+        const holesCompleted = innerHoles.length;
+        const complete = holesCompleted >= 18;
+        const relToPar = parseRelativeScore(rd.displayValue);
+        const actualScore = complete ? rd.value : null;
+
+        rounds.push({ score: actualScore, relToPar, holesCompleted, complete });
+
+        if (complete && rd.value > worstScorePerRound[i]) {
+          worstScorePerRound[i] = rd.value;
+        }
+      }
+    }
+
+    // Determine position
+    let position = null;
+    if (c.status?.position?.id) position = parseInt(c.status.position.id);
+    // fallback: try sortOrder
+    if (!position && sortOrder < 999) position = sortOrder;
+
+    golfers.set(normalizedName, {
+      displayName: name,
+      rounds,
+      overallScore,
+      position,
+      sortOrder
+    });
+  }
+
+  // Determine current round number
+  let currentRound = 0;
+  for (const [, g] of golfers) {
+    for (let i = 0; i < 4; i++) {
+      if (g.rounds[i].holesCompleted > 0 && i + 1 > currentRound) {
+        currentRound = i + 1;
+      }
+    }
+  }
+
+  return { golfers, eventStatus, currentRound, worstScorePerRound };
+}
+
+function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores, currentRound) {
+  if (!golferData) return { total: 0, rounds: [0,0,0,0], bonus: 0, roundLeader: 0 };
+
+  const multipliers = [1, 2, 3, 4];
+  const roundPoints = [0, 0, 0, 0];
+
+  // Check if player missed cut / WD / DQ: they played some rounds but have no data
+  // for later rounds that other players have completed
+  const playerMaxRound = golferData.rounds.reduce((max, rd, i) => rd.holesCompleted > 0 ? i + 1 : max, 0);
+
+  for (let i = 0; i < 4; i++) {
+    const rd = golferData.rounds[i];
+
+    if (rd.holesCompleted > 0) {
+      // Player competed in this round - use their actual score
+      let pts = rd.relToPar * multipliers[i];
+      if (isBonus && pts < 0) pts = 0;
+      roundPoints[i] = pts;
+    } else if (i + 1 <= currentRound && playerMaxRound > 0 && playerMaxRound < i + 1 && worstScores[i] > 0) {
+      // Player did NOT compete but this round has been played by others
+      // WD/DQ/Missed cut rule: assign worst score of the day
+      let pts = (72 - worstScores[i]) * multipliers[i]; // worst score = most over par = big negative
+      if (isBonus && pts < 0) pts = 0; // bonus player floor still applies
+      roundPoints[i] = pts;
+    }
+    // else: round hasn't happened yet, 0 points
+  }
+
+  // Finish position bonus
+  let finishBonus = 0;
+  const pos = golferData.position;
+  if (pos) {
+    if (pos === 1) finishBonus = 15;
+    else if (pos >= 2 && pos <= 5) finishBonus = 10;
+    else if (pos >= 6 && pos <= 10) finishBonus = 7;
+    else if (pos >= 11 && pos <= 20) finishBonus = 5;
+    else if (pos >= 21 && pos <= 30) finishBonus = 2;
+  }
+
+  const total = roundPoints.reduce((a, b) => a + b, 0) + finishBonus;
+  return { total, rounds: roundPoints, bonus: finishBonus, roundLeader: 0 };
+}
+
+function calculateAllScores(parsedData) {
+  const { golfers, currentRound } = parsedData;
+
+  // Find round leaders for rounds 1-3
+  const roundLeaders = [[], [], []]; // rounds 1-3
+  for (let r = 0; r < 3; r++) {
+    let bestScore = -Infinity;
+    for (const [name, data] of golfers) {
+      if (data.rounds[r].complete) {
+        const score = data.rounds[r].relToPar;
+        if (score > bestScore) {
+          bestScore = score;
+          roundLeaders[r] = [name];
+        } else if (score === bestScore) {
+          roundLeaders[r].push(name);
+        }
+      }
+    }
+  }
+
+  const scored = ENTRIES.map((entry, idx) => {
+    const players = [...entry.p, entry.b];
+    let totalPoints = 0;
+    const playerDetails = [];
+
+    for (let pi = 0; pi < 5; pi++) {
+      const playerName = players[pi];
+      const isBonus = pi === 4;
+      const normalized = normalizeName(playerName);
+      const golferData = golfers.get(normalized);
+
+      const pts = calculateGolferPoolPoints(normalized, golferData, isBonus, parsedData.worstScorePerRound, currentRound);
+
+      // Round leader bonus
+      let leaderBonus = 0;
+      for (let r = 0; r < 3; r++) {
+        if (roundLeaders[r].includes(normalized)) {
+          leaderBonus += 5;
+        }
+      }
+      pts.roundLeader = leaderBonus;
+      pts.total += leaderBonus;
+
+      totalPoints += pts.total;
+      playerDetails.push({
+        name: playerName,
+        displayName: golferData?.displayName || playerName,
+        isBonus,
+        salary: FIELD_SALARIES[playerName] || 0,
+        overallScore: golferData?.overallScore || "N/A",
+        position: golferData?.position || null,
+        ...pts
+      });
+    }
+
+    return {
+      rank: 0,
+      name: entry.n,
+      winningScore: entry.w,
+      totalPoints,
+      players: playerDetails,
+      entryIdx: idx
+    };
+  });
+
+  // Sort by total points descending
+  scored.sort((a, b) => b.totalPoints - a.totalPoints);
+
+  // Assign ranks (handle ties)
+  let rank = 1;
+  for (let i = 0; i < scored.length; i++) {
+    if (i > 0 && scored[i].totalPoints < scored[i-1].totalPoints) {
+      rank = i + 1;
+    }
+    scored[i].rank = rank;
+  }
+
+  return scored;
+}
+
+// ===== API LAYER =====
+let lastData = null;
+let lastUpdate = null;
+let allScored = [];
+let prevRanks = new Map(); // name -> previous rank
+
+async function fetchAndScore() {
+  try {
+    const resp = await fetch(ESPN_URL);
+    if (!resp.ok) throw new Error("ESPN API error: " + resp.status);
+    const data = await resp.json();
+    lastData = parseESPNData(data);
+    lastUpdate = new Date();
+
+    // Save previous ranks before recalculating
+    const oldRanks = new Map();
+    for (const e of allScored) oldRanks.set(e.name, e.rank);
+
+    allScored = calculateAllScores(lastData);
+
+    // Calculate rank changes (only if we had previous data)
+    if (oldRanks.size > 0) {
+      for (const e of allScored) {
+        const prev = oldRanks.get(e.name);
+        e.rankChange = prev !== undefined ? prev - e.rank : 0; // positive = moved up
+      }
+    } else {
+      for (const e of allScored) e.rankChange = 0;
+    }
+
+    document.getElementById("liveStatus").textContent = "LIVE";
+    document.getElementById("liveStatus").className = "text-green-300 font-medium";
+
+    const roundInfo = lastData.currentRound > 0
+      ? "Round " + lastData.currentRound + " • " + lastData.eventStatus
+      : lastData.eventStatus;
+    document.getElementById("roundInfo").textContent = roundInfo + " • Updated " + lastUpdate.toLocaleTimeString();
+
+    renderCurrentTab();
+
+    // Clear movement indicators after 4 seconds
+    setTimeout(() => {
+      let hadChanges = false;
+      for (const e of allScored) {
+        if (e.rankChange !== 0) hadChanges = true;
+        e.rankChange = 0;
+      }
+      if (hadChanges) renderCurrentTab();
+    }, 4000);
+  } catch (err) {
+    console.error("Fetch error:", err);
+    document.getElementById("liveStatus").textContent = "OFFLINE";
+    document.getElementById("liveStatus").className = "text-red-400 font-medium";
+  }
+}
+
+// ===== FAVORITES (localStorage) =====
+function loadFavorites() {
+  try { return new Set(JSON.parse(localStorage.getItem('masters-pool-favorites') || '[]')); }
+  catch { return new Set(); }
+}
+function saveFavorites() {
+  localStorage.setItem('masters-pool-favorites', JSON.stringify([...favorites]));
+}
+function toggleFavorite(name, evt) {
+  evt.stopPropagation();
+  if (favorites.has(name)) favorites.delete(name);
+  else favorites.add(name);
+  saveFavorites();
+  renderCurrentTab();
+}
+let favorites = loadFavorites();
+
+// ===== UI RENDERING =====
+let currentTab = "leaderboard";
+let searchQuery = "";
+let selectedParticipant = null;
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    b.className = "tab-btn px-4 py-2 text-sm font-semibold " +
+      (b.id === "tab-" + tab ? "text-augusta-gold border-b-2 border-augusta-gold" : "text-gray-500 border-b-2 border-transparent hover:text-gray-300");
+  });
+  document.querySelectorAll("[id$=\'-tab\']").forEach(d => d.className = d.id === tab + "-tab" ? "" : "hidden");
+  renderCurrentTab();
+}
+
+function renderCurrentTab() {
+  if (currentTab === "leaderboard") renderLeaderboard();
+  else if (currentTab === "stats") renderStats();
+  else if (currentTab === "my-team") renderFindMe();
+  else if (currentTab === "payouts") renderPayouts();
+}
+
+function renderLeaderboard() {
+  const container = document.getElementById("leaderboard-tab");
+  let filtered = allScored;
+
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    filtered = allScored.filter(e => e.name.toLowerCase().includes(q));
+  }
+
+  const count = document.getElementById("participantCount");
+  count.textContent = filtered.length + " of " + allScored.length + " participants";
+
+  let html = '<div class="space-y-1">';
+
+  // Table header
+  html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-xs text-gray-500 font-semibold uppercase tracking-wider">';
+  html += '<div class="col-span-1">Rank</div>';
+  html += '<div class="col-span-3">Participant</div>';
+  html += '<div class="col-span-1 text-center">R1</div>';
+  html += '<div class="col-span-1 text-center">R2</div>';
+  html += '<div class="col-span-1 text-center">R3</div>';
+  html += '<div class="col-span-1 text-center">R4</div>';
+  html += '<div class="col-span-1 text-center">Bonus</div>';
+  html += '<div class="col-span-1 text-center">Leader</div>';
+  html += '<div class="col-span-2 text-right">Total</div>';
+  html += '</div>';
+
+  // Split into favorites and rest
+  const favEntries = filtered.filter(e => favorites.has(e.name));
+  const restEntries = filtered.filter(e => !favorites.has(e.name));
+
+  if (favEntries.length > 0) {
+    html += '<div class="flex items-center gap-2 px-2 pt-2 pb-1 text-xs text-augusta-gold font-semibold uppercase tracking-widest"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Favorites</div>';
+    for (const entry of favEntries) { html += renderRow(entry); }
+    if (restEntries.length > 0) {
+      html += '<div class="border-t border-board-border my-3"></div>';
+      html += '<div class="px-2 pb-1 text-xs text-gray-600 font-semibold uppercase tracking-widest">All Participants</div>';
+    }
+  }
+
+  for (const entry of restEntries) { html += renderRow(entry); }
+
+  html += '</div>';
+  // All data is from our own embedded JSON and ESPN API - no user-generated HTML content
+  container.innerHTML = html;
+}
+
+function renderRow(entry) {
+  const rankClass = entry.rank === 1 ? "rank-gold" : entry.rank === 2 ? "rank-silver" : entry.rank === 3 ? "rank-bronze" : "text-gray-400";
+  const isFav = favorites.has(entry.name);
+
+  const roundTotals = [0,0,0,0];
+  let finishBonusTotal = 0;
+  let leaderBonusTotal = 0;
+  for (const p of entry.players) {
+    for (let r = 0; r < 4; r++) roundTotals[r] += p.rounds[r];
+    finishBonusTotal += p.bonus;
+    leaderBonusTotal += p.roundLeader;
+  }
+
+  const pointsColor = entry.totalPoints > 0 ? "text-green-400" : entry.totalPoints < 0 ? "text-red-400" : "text-gray-300";
+  // entry.name comes from our own embedded pool data JSON, not user input
+  const escapedName = entry.name.replace(/'/g, "\\'");
+  const starSvg = '<svg onclick="toggleFavorite(\'' + escapedName + '\', event)" class="w-5 h-5 cursor-pointer transition-colors shrink-0 ' + (isFav ? 'text-augusta-gold' : 'text-gray-600 hover:text-gray-400') + '" fill="' + (isFav ? 'currentColor' : 'none') + '" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
+
+  const bgClass = isFav ? "bg-augusta-gold/10 border border-augusta-gold/30" : "bg-board-card hover:bg-board-hover border border-board-border";
+  const payout = getPayout(entry.rank);
+  const payoutBadge = payout > 0 ? ' <span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">$' + payout.toLocaleString() + '</span>' : '';
+
+  // Rank movement indicator
+  const rc = entry.rankChange || 0;
+  let moveHtml = '';
+  let moverClass = '';
+  if (rc > 0) {
+    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-[10px] font-bold text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>' + rc + '</span>';
+    moverClass = ' mover-up';
+  } else if (rc < 0) {
+    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-[10px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>' + Math.abs(rc) + '</span>';
+    moverClass = ' mover-down';
+  }
+
+  let html = '<div class="cursor-pointer rounded-lg ' + bgClass + moverClass + ' transition-all duration-150">';
+
+  // Mobile layout
+  html += '<div class="md:hidden p-3 flex items-center justify-between">';
+  html += '<div class="flex items-center gap-2">';
+  html += starSvg;
+  html += '<span class="text-lg font-bold ' + rankClass + ' w-8">' + entry.rank + '</span>';
+  html += '<div onclick="showDetail(' + entry.entryIdx + ')">';
+  html += '<div class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + payoutBadge + moveHtml + '</div>';
+  html += '<div class="text-xs text-gray-500">Tiebreaker: ' + entry.winningScore + '</div>';
+  html += '</div></div>';
+  html += '<div class="text-right" onclick="showDetail(' + entry.entryIdx + ')">';
+  html += '<div class="text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</div>';
+  html += '<div class="text-xs text-gray-500">pts</div>';
+  html += '</div></div>';
+
+  // Desktop layout
+  html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-3 items-center" onclick="showDetail(' + entry.entryIdx + ')">';
+  html += '<div class="col-span-1 flex items-center gap-1">' + starSvg + '<span class="text-lg font-bold ' + rankClass + '">' + entry.rank + '</span></div>';
+  html += '<div class="col-span-3"><span class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + '</span>' + payoutBadge + moveHtml + '<span class="text-xs text-gray-500 ml-2">TB: ' + entry.winningScore + '</span></div>';
+  for (let r = 0; r < 4; r++) {
+    const rc = roundTotals[r] > 0 ? "text-green-400" : roundTotals[r] < 0 ? "text-red-400" : "text-gray-500";
+    html += '<div class="col-span-1 text-center text-sm font-mono ' + rc + '">' + formatPoints(roundTotals[r]) + '</div>';
+  }
+  html += '<div class="col-span-1 text-center text-sm font-mono text-yellow-400">' + (finishBonusTotal > 0 ? "+" + finishBonusTotal : "-") + '</div>';
+  html += '<div class="col-span-1 text-center text-sm font-mono text-blue-400">' + (leaderBonusTotal > 0 ? "+" + leaderBonusTotal : "-") + '</div>';
+  html += '<div class="col-span-2 text-right text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</div>';
+  html += '</div></div>';
+
+  return html;
+}
+
+function renderStats() {
+  const container = document.getElementById("stats-tab");
+  if (!lastData) { container.innerHTML = '<div class="text-center text-gray-500 py-8">Loading...</div>'; return; }
+
+  // Calculate golfer stats
+  const golferStats = [];
+  for (const [normalizedName, data] of lastData.golfers) {
+    // Count how many entries picked this golfer
+    let pickCount = 0;
+    let asBonusCount = 0;
+    for (const e of ENTRIES) {
+      const allPlayers = [...e.p, e.b].map(n => normalizeName(n));
+      if (allPlayers.includes(normalizedName)) {
+        pickCount++;
+        if (normalizeName(e.b) === normalizedName) asBonusCount++;
+      }
+    }
+
+    // Calculate pool points this golfer generates (as non-bonus)
+    const pts = calculateGolferPoolPoints(normalizedName, data, false, lastData.worstScorePerRound, lastData.currentRound);
+
+    golferStats.push({
+      name: data.displayName,
+      overallScore: data.overallScore,
+      position: data.position,
+      pickCount,
+      asBonusCount,
+      poolPoints: pts.total,
+      rounds: pts.rounds,
+      salary: FIELD_SALARIES[Object.keys(FIELD_SALARIES).find(k => normalizeName(k) === normalizedName)] || 0
+    });
+  }
+
+  // Sort by pool points descending
+  golferStats.sort((a, b) => b.poolPoints - a.poolPoints);
+
+  let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+  // Top performers card
+  html += '<div class="bg-board-card border border-board-border rounded-xl p-4 col-span-full"><h3 class="text-augusta-gold font-bold text-lg mb-3">Golfer Performance</h3>';
+  html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase">';
+  html += '<th class="text-left pb-2">Golfer</th><th class="text-center pb-2">Score</th><th class="text-center pb-2">Salary</th><th class="text-center pb-2">Picked</th><th class="text-center pb-2">Pool Pts</th><th class="text-center pb-2">Value</th></tr></thead><tbody>';
+
+  for (const g of golferStats) {
+    const ptsColor = g.poolPoints > 0 ? "text-green-400" : g.poolPoints < 0 ? "text-red-400" : "text-gray-400";
+    const value = g.salary > 0 ? (g.poolPoints / g.salary * 100).toFixed(1) : (g.poolPoints > 0 ? "\u221e" : "0");
+    const isBonus = BONUS_PLAYERS.has(Object.keys(FIELD_SALARIES).find(k => normalizeName(k) === normalizeName(g.name)) || "");
+    html += '<tr class="border-t border-board-border hover:bg-board-hover">';
+    html += '<td class="py-2 font-medium text-white">' + g.name + (isBonus ? ' <span class="text-xs text-yellow-500">BONUS</span>' : "") + '</td>';
+    html += '<td class="py-2 text-center">' + g.overallScore + '</td>';
+    html += '<td class="py-2 text-center text-gray-400">' + g.salary + '</td>';
+    html += '<td class="py-2 text-center">' + g.pickCount + ' <span class="text-gray-600">(' + (g.pickCount/ENTRIES.length*100).toFixed(0) + '%)</span></td>';
+    html += '<td class="py-2 text-center font-bold ' + ptsColor + '">' + formatPoints(g.poolPoints) + '</td>';
+    html += '<td class="py-2 text-center text-gray-400">' + value + '</td>';
+    html += '</tr>';
+  }
+
+  html += '</tbody></table></div></div>';
+
+  // Most picked card
+  const byPicks = [...golferStats].sort((a, b) => b.pickCount - a.pickCount).slice(0, 10);
+  html += '<div class="bg-board-card border border-board-border rounded-xl p-4"><h3 class="text-augusta-gold font-bold mb-3">Most Picked</h3><div class="space-y-2">';
+  for (const g of byPicks) {
+    const pct = (g.pickCount / ENTRIES.length * 100).toFixed(0);
+    html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + '</span><div class="flex items-center gap-2"><div class="w-24 bg-board-bg rounded-full h-2"><div class="bg-masters-green rounded-full h-2" style="width:' + pct + '%"></div></div><span class="text-gray-400 text-xs w-12 text-right">' + g.pickCount + ' (' + pct + '%)</span></div></div>';
+  }
+  html += '</div></div>';
+
+  // Best value card
+  const byValue = golferStats.filter(g => g.salary > 0).sort((a, b) => (b.poolPoints/b.salary) - (a.poolPoints/a.salary)).slice(0, 10);
+  html += '<div class="bg-board-card border border-board-border rounded-xl p-4"><h3 class="text-augusta-gold font-bold mb-3">Best Value (Pts/Salary)</h3><div class="space-y-2">';
+  for (const g of byValue) {
+    const val = (g.poolPoints / g.salary * 100).toFixed(0);
+    const ptsColor = g.poolPoints > 0 ? "text-green-400" : "text-red-400";
+    html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + ' <span class="text-gray-500">($' + g.salary + ')</span></span><span class="' + ptsColor + ' font-mono">' + formatPoints(g.poolPoints) + ' pts</span></div>';
+  }
+  html += '</div></div>';
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderFindMe() {
+  const container = document.getElementById("my-team-tab");
+  let html = '<div class="bg-board-card border border-board-border rounded-xl p-4">';
+  html += '<h3 class="text-augusta-gold font-bold text-lg mb-3">Find Your Team</h3>';
+  html += '<input type="text" id="findMeInput" placeholder="Type your name..." oninput="filterFindMe(this.value)" class="w-full bg-board-bg border border-board-border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-augusta-gold mb-4">';
+  html += '<div id="findMeResults"></div></div>';
+  container.innerHTML = html;
+}
+
+function filterFindMe(q) {
+  const results = document.getElementById("findMeResults");
+  if (!q || q.length < 2) { results.innerHTML = '<div class="text-gray-500 text-sm">Type at least 2 characters...</div>'; return; }
+  const matches = allScored.filter(e => e.name.toLowerCase().includes(q.toLowerCase()));
+  if (matches.length === 0) { results.innerHTML = '<div class="text-gray-500 text-sm">No matches found</div>'; return; }
+
+  let html = '<div class="space-y-3">';
+  for (const entry of matches) {
+    html += renderDetailCard(entry);
+  }
+  html += '</div>';
+  results.innerHTML = html;
+}
+
+function renderPayouts() {
+  const container = document.getElementById("payouts-tab");
+  const totalPrize = PAYOUTS.reduce((sum, p) => sum + p.amount * (p.max - p.min + 1), 0);
+
+  let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+
+  // Payout structure card
+  html += '<div class="bg-board-card border border-board-border rounded-xl p-5">';
+  html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">Payout Structure</h3>';
+  html += '<p class="text-gray-500 text-xs mb-4">501 entries &times; $10 = $5,010 pool &bull; $' + totalPrize.toLocaleString() + ' paid out</p>';
+  html += '<div class="space-y-1">';
+  for (const p of PAYOUTS) {
+    const label = p.min === p.max ? (p.min === 1 ? '1st' : p.min === 2 ? '2nd' : p.min === 3 ? '3rd' : p.min + 'th') : p.min + (p.min === 1 ? 'st' : p.min === 2 ? 'nd' : p.min === 3 ? 'rd' : 'th') + ' - ' + p.max + (p.max === 2 ? 'nd' : p.max === 3 ? 'rd' : 'th');
+    const barWidth = Math.max(8, (p.amount / 1200) * 100);
+    const color = p.amount >= 500 ? 'bg-augusta-gold' : p.amount >= 100 ? 'bg-masters-green' : 'bg-masters-dark';
+    html += '<div class="flex items-center gap-3 py-1.5">';
+    html += '<span class="text-sm text-gray-400 w-20 text-right shrink-0">' + label + '</span>';
+    html += '<div class="flex-1 relative"><div class="' + color + ' rounded h-7 flex items-center px-3" style="width:' + barWidth + '%"><span class="text-sm font-bold text-white">$' + p.amount.toLocaleString() + '</span></div></div>';
+    html += '</div>';
+  }
+  html += '</div></div>';
+
+  // Who's in the money card
+  html += '<div class="bg-board-card border border-board-border rounded-xl p-5">';
+  html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">In the Money</h3>';
+  html += '<p class="text-gray-500 text-xs mb-4">Top 41 participants win prizes</p>';
+  html += '<div class="space-y-0.5">';
+
+  const inMoney = allScored.filter(e => getPayout(e.rank) > 0);
+  for (const entry of inMoney) {
+    const payout = getPayout(entry.rank);
+    const isFav = favorites.has(entry.name);
+    const pointsColor = entry.totalPoints > 0 ? 'text-green-400' : entry.totalPoints < 0 ? 'text-red-400' : 'text-gray-400';
+    const payoutColor = payout >= 500 ? 'text-augusta-gold font-bold' : payout >= 100 ? 'text-green-400' : 'text-gray-300';
+
+    html += '<div onclick="showDetail(' + entry.entryIdx + ')" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
+    html += '<div class="flex items-center gap-2">';
+    html += '<span class="text-sm font-bold text-gray-500 w-6">' + entry.rank + '</span>';
+    html += '<span class="text-sm ' + (isFav ? 'text-augusta-gold font-semibold' : 'text-white') + '">' + entry.name + '</span>';
+    html += '</div>';
+    html += '<div class="flex items-center gap-4">';
+    html += '<span class="text-xs font-mono ' + pointsColor + '">' + formatPoints(entry.totalPoints) + ' pts</span>';
+    html += '<span class="text-sm ' + payoutColor + '">$' + payout.toLocaleString() + '</span>';
+    html += '</div></div>';
+  }
+
+  html += '</div></div></div>';
+  container.innerHTML = html;
+}
+
+function showDetail(entryIdx) {
+  const entry = allScored.find(e => e.entryIdx === entryIdx);
+  if (!entry) return;
+
+  const modal = document.getElementById("detailModal");
+  const content = document.getElementById("detailContent");
+  content.innerHTML = renderDetailCard(entry, true);
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeModal() {
+  const modal = document.getElementById("detailModal");
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
+
+function renderDetailCard(entry, isModal = false) {
+  const pointsColor = entry.totalPoints > 0 ? "text-green-400" : entry.totalPoints < 0 ? "text-red-400" : "text-gray-300";
+
+  let html = '<div class="' + (isModal ? "p-6" : "bg-board-card border border-board-border rounded-xl p-4") + '">';
+
+  // Header
+  html += '<div class="flex items-center justify-between mb-4">';
+  html += '<div><div class="text-lg font-bold text-white">' + entry.name + '</div>';
+  html += '<div class="text-sm text-gray-400">Rank #' + entry.rank + ' of ' + allScored.length + ' \u2022 Tiebreaker: ' + entry.winningScore + '</div></div>';
+  html += '<div class="text-3xl font-black ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '<span class="text-sm font-normal text-gray-500"> pts</span></div>';
+  html += '</div>';
+
+  // Players table
+  html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase border-b border-board-border">';
+  html += '<th class="text-left pb-2 pr-2">Golfer</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
+
+  let totalSalary = 0;
+  for (const p of entry.players) {
+    const ptsColor = p.total > 0 ? "text-green-400" : p.total < 0 ? "text-red-400" : "text-gray-500";
+    if (!p.isBonus) totalSalary += p.salary;
+
+    html += '<tr class="border-t border-board-border/50">';
+    html += '<td class="py-2 pr-2"><span class="font-medium text-white">' + p.displayName + '</span>';
+    if (p.isBonus) html += ' <span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
+    html += '</td>';
+    html += '<td class="py-2 px-1 text-center text-gray-500 text-xs">' + p.salary + '</td>';
+    html += '<td class="py-2 px-1 text-center font-mono">' + (p.overallScore || "-") + '</td>';
+    for (let r = 0; r < 4; r++) {
+      const rc = p.rounds[r] > 0 ? "text-green-400" : p.rounds[r] < 0 ? "text-red-400" : "text-gray-600";
+      html += '<td class="py-2 px-1 text-center font-mono text-xs ' + rc + '">' + (p.rounds[r] !== 0 ? formatPoints(p.rounds[r]) : "-") + '</td>';
+    }
+    html += '<td class="py-2 px-1 text-center font-mono text-xs text-yellow-400">' + (p.bonus > 0 ? "+" + p.bonus : "-") + '</td>';
+    html += '<td class="py-2 px-1 text-center font-mono text-xs text-blue-400">' + (p.roundLeader > 0 ? "+" + p.roundLeader : "-") + '</td>';
+    html += '<td class="py-2 text-right font-bold ' + ptsColor + '">' + formatPoints(p.total) + '</td>';
+    html += '</tr>';
+  }
+
+  html += '</tbody></table></div>';
+
+  // Salary cap
+  html += '<div class="mt-3 flex items-center justify-between text-xs text-gray-500 border-t border-board-border pt-2">';
+  html += '<span>Salary used: ' + totalSalary + '/500</span>';
+  html += '<span>5 golfers on team</span>';
+  html += '</div></div>';
+
+  return html;
+}
+
+// ===== HELPERS =====
+function formatPoints(pts) {
+  if (pts === 0) return "0";
+  return pts > 0 ? "+" + pts : String(pts);
+}
+
+function highlightMatch(text, query) {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return text.slice(0, idx) + '<span class="bg-augusta-gold/30 text-augusta-gold">' + text.slice(idx, idx + query.length) + '</span>' + text.slice(idx + query.length);
+}
+
+// ===== EVENT HANDLERS =====
+document.getElementById("searchInput").addEventListener("input", function(e) {
+  searchQuery = e.target.value;
+  renderLeaderboard();
+});
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeModal();
+});
+
+// ===== INIT =====
+fetchAndScore();
+setInterval(fetchAndScore, POLL_INTERVAL);
+</script>
+</body>
+</html>
