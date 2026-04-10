@@ -333,9 +333,9 @@ function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores,
       let pts = rd.relToPar * multipliers[i];
       if (isBonus && pts < 0) pts = 0;
       roundPoints[i] = pts;
-    } else if (i + 1 <= currentRound && playerMaxRound > 0 && playerMaxRound < i + 1 && worstScores[i] > 0) {
-      // Player did NOT compete but this round has been played by others
-      // WD/DQ/Missed cut rule: assign worst score of the day
+    } else if (i + 1 <= currentRound && playerMaxRound > 0 && playerMaxRound < i + 1 && worstScores[i] > 0 && !golferData.isActive) {
+      // Player did NOT compete and is inactive (WD/DQ/Missed cut)
+      // Assign worst score of the day as penalty
       let pts = (72 - worstScores[i]) * multipliers[i]; // worst score = most over par = big negative
       if (isBonus && pts < 0) pts = 0; // bonus player floor still applies
       roundPoints[i] = pts;
