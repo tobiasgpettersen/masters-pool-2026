@@ -88,7 +88,6 @@ h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
   <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Pool views">
     <button onclick="switchTab('leaderboard')" id="tab-leaderboard" role="tab" aria-selected="true" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
     <button onclick="switchTab('stats')" id="tab-stats" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
-    <button onclick="switchTab('my-team')" id="tab-my-team" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
     <button onclick="switchTab('payouts')" id="tab-payouts" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
     <button onclick="switchTab('projections')" id="tab-projections" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Projections</button>
     <button onclick="switchTab('rules')" id="tab-rules" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Rules</button>
@@ -99,16 +98,10 @@ h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
 <main class="max-w-7xl mx-auto px-2 md:px-4 py-4">
   <div id="leaderboard-tab" role="tabpanel" aria-label="Leaderboard"></div>
   <div id="stats-tab" class="hidden" role="tabpanel" aria-label="Player Stats"></div>
-  <div id="my-team-tab" class="hidden" role="tabpanel" aria-label="Find Me"></div>
   <div id="payouts-tab" class="hidden" role="tabpanel" aria-label="Payouts"></div>
   <div id="projections-tab" class="hidden" role="tabpanel" aria-label="Projections"></div>
   <div id="rules-tab" class="hidden" role="tabpanel" aria-label="Rules"></div>
 </main>
-
-<!-- Detail Modal -->
-<div id="detailModal" class="fixed inset-0 bg-black/70 z-50 hidden items-end md:items-center justify-center" onclick="if(event.target===this)closeModal()">
-  <div id="detailContent" class="bg-board-card rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[85vh] overflow-y-auto slide-up"></div>
-</div>
 
 <script>
 // ===== EMBEDDED DATA =====
@@ -687,6 +680,7 @@ let favorites = loadFavorites();
 let currentTab = "leaderboard";
 let searchQuery = "";
 let selectedParticipant = null;
+let expandedEntries = new Set();
 
 function switchTab(tab) {
   currentTab = tab;
@@ -703,7 +697,6 @@ function switchTab(tab) {
 function renderCurrentTab() {
   if (currentTab === "leaderboard") renderLeaderboard();
   else if (currentTab === "stats") renderStats();
-  else if (currentTab === "my-team") renderFindMe();
   else if (currentTab === "payouts") renderPayouts();
   else if (currentTab === "projections") renderProjections();
   else if (currentTab === "rules") renderRules();
@@ -787,24 +780,30 @@ function renderRow(entry) {
     moverClass = ' mover-down';
   }
 
-  let html = '<div class="cursor-pointer rounded-lg ' + bgClass + moverClass + ' transition-all duration-150" tabindex="0" role="button" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showDetail(' + entry.entryIdx + ')}">';
+  const isExpanded = expandedEntries.has(entry.entryIdx);
+  const chevronSvg = '<svg class="w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0 ' + (isExpanded ? 'rotate-180' : '') + '" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+
+  let html = '<div class="rounded-lg ' + bgClass + moverClass + ' transition-all duration-150 ' + (isExpanded ? 'ring-1 ring-augusta-gold/40' : '') + '">';
 
   // Mobile layout
-  html += '<div class="md:hidden p-3 flex items-center justify-between">';
+  html += '<div class="md:hidden p-3 flex items-center justify-between cursor-pointer" onclick="toggleEntryExpand(' + entry.entryIdx + ')" tabindex="0" role="button" aria-expanded="' + isExpanded + '" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleEntryExpand(' + entry.entryIdx + ')}">';
   html += '<div class="flex items-center gap-2">';
   html += starSvg;
   html += '<span class="text-lg font-bold ' + rankClass + ' w-8">' + entry.rank + '</span>';
-  html += '<div onclick="showDetail(' + entry.entryIdx + ')">';
+  html += '<div>';
   html += '<div class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + payoutBadge + moveHtml + '</div>';
   html += '<div class="text-xs text-gray-400">Tiebreaker: ' + entry.winningScore + '</div>';
   html += '</div></div>';
-  html += '<div class="text-right" onclick="showDetail(' + entry.entryIdx + ')">';
+  html += '<div class="flex items-center gap-2">';
+  html += '<div class="text-right">';
   html += '<div class="text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</div>';
   html += '<div class="text-xs text-gray-400">pts</div>';
+  html += '</div>';
+  html += chevronSvg;
   html += '</div></div>';
 
   // Desktop layout
-  html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-3 items-center" onclick="showDetail(' + entry.entryIdx + ')">';
+  html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer" onclick="toggleEntryExpand(' + entry.entryIdx + ')" tabindex="0" role="button" aria-expanded="' + isExpanded + '" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleEntryExpand(' + entry.entryIdx + ')}">';
   html += '<div class="col-span-1 flex items-center gap-1">' + starSvg + '<span class="text-lg font-bold ' + rankClass + '">' + entry.rank + '</span></div>';
   html += '<div class="col-span-3"><span class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + '</span>' + payoutBadge + moveHtml + '<span class="text-xs text-gray-400 ml-2">TB: ' + entry.winningScore + '</span></div>';
   for (let r = 0; r < 4; r++) {
@@ -813,8 +812,17 @@ function renderRow(entry) {
   }
   html += '<div class="col-span-1 text-center text-sm font-mono text-yellow-400">' + (finishBonusTotal > 0 ? "+" + finishBonusTotal : "-") + '</div>';
   html += '<div class="col-span-1 text-center text-sm font-mono text-blue-400">' + (leaderBonusTotal > 0 ? "+" + leaderBonusTotal : "-") + '</div>';
-  html += '<div class="col-span-2 text-right text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</div>';
-  html += '</div></div>';
+  html += '<div class="col-span-2 text-right flex items-center justify-end gap-2"><span class="text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</span>' + chevronSvg + '</div>';
+  html += '</div>';
+
+  // Inline expansion (detail card)
+  if (isExpanded) {
+    html += '<div class="border-t border-board-border/50">';
+    html += renderDetailCard(entry, false);
+    html += '</div>';
+  }
+
+  html += '</div>';
 
   return html;
 }
@@ -1056,30 +1064,6 @@ function renderStats() {
   container.innerHTML = html;
 }
 
-function renderFindMe() {
-  const container = document.getElementById("my-team-tab");
-  let html = '<div class="bg-board-card border border-board-border rounded-xl p-4">';
-  html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">Find Your Team</h3>';
-  html += '<p class="text-gray-400 text-sm mb-3">Search by name to see your picks, scores, and current standing.</p>';
-  html += '<input type="text" id="findMeInput" placeholder="Type your name..." oninput="filterFindMe(this.value)" class="w-full bg-board-bg border border-board-border rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-augusta-gold mb-4" aria-label="Search for your name">';
-  html += '<div id="findMeResults"><div class="text-center py-6"><svg class="w-10 h-10 mx-auto text-gray-600 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg><p class="text-gray-400 text-sm">Search from 501 participants</p></div></div></div>';
-  container.innerHTML = html;
-}
-
-function filterFindMe(q) {
-  const results = document.getElementById("findMeResults");
-  if (!q || q.length < 2) { results.innerHTML = '<div class="text-gray-400 text-sm">Type at least 2 characters...</div>'; return; }
-  const matches = allScored.filter(e => e.name.toLowerCase().includes(q.toLowerCase()));
-  if (matches.length === 0) { results.innerHTML = '<div class="text-gray-400 text-sm">No matches found</div>'; return; }
-
-  let html = '<div class="space-y-3">';
-  for (const entry of matches) {
-    html += renderDetailCard(entry);
-  }
-  html += '</div>';
-  results.innerHTML = html;
-}
-
 function renderPayouts() {
   const container = document.getElementById("payouts-tab");
   const totalPrize = PAYOUTS.reduce((sum, p) => sum + p.amount * (p.max - p.min + 1), 0);
@@ -1115,7 +1099,7 @@ function renderPayouts() {
     const pointsColor = entry.totalPoints > 0 ? 'text-green-400' : entry.totalPoints < 0 ? 'text-red-400' : 'text-gray-400';
     const payoutColor = payout >= 500 ? 'text-augusta-gold font-bold' : payout >= 100 ? 'text-green-400' : 'text-gray-300';
 
-    html += '<div onclick="showDetail(' + entry.entryIdx + ')" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
+    html += '<div onclick="switchTab(\'leaderboard\');setTimeout(function(){toggleEntryExpand(' + entry.entryIdx + ')},50)" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
     html += '<div class="flex items-center gap-2">';
     html += '<span class="text-sm font-bold text-gray-400 w-6">' + entry.rank + '</span>';
     html += '<span class="text-sm ' + (isFav ? 'text-augusta-gold font-semibold' : 'text-white') + '">' + entry.name + '</span>';
@@ -1256,21 +1240,13 @@ function toggleRuleSection(btn) {
   }
 }
 
-function showDetail(entryIdx) {
-  const entry = allScored.find(e => e.entryIdx === entryIdx);
-  if (!entry) return;
-
-  const modal = document.getElementById("detailModal");
-  const content = document.getElementById("detailContent");
-  content.innerHTML = renderDetailCard(entry, true);
-  modal.classList.remove("hidden");
-  modal.classList.add("flex");
-}
-
-function closeModal() {
-  const modal = document.getElementById("detailModal");
-  modal.classList.add("hidden");
-  modal.classList.remove("flex");
+function toggleEntryExpand(entryIdx) {
+  if (expandedEntries.has(entryIdx)) {
+    expandedEntries.delete(entryIdx);
+  } else {
+    expandedEntries.add(entryIdx);
+  }
+  renderLeaderboard();
 }
 
 function renderDetailCard(entry, isModal = false) {
@@ -1355,7 +1331,7 @@ document.getElementById("searchInput").addEventListener("input", function(e) {
 });
 
 document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") closeModal();
+  if (e.key === "Escape" && expandedEntries.size > 0) { expandedEntries.clear(); renderLeaderboard(); }
 });
 
 // ===== PROJECTIONS ENGINE (Monte Carlo Win Probability) =====
