@@ -133,11 +133,34 @@ const PAYOUTS = [
   { min: 41, max: 41, amount: 10 }
 ];
 
-function getPayout(rank) {
+function getPositionPayout(position) {
   for (const p of PAYOUTS) {
-    if (rank >= p.min && rank <= p.max) return p.amount;
+    if (position >= p.min && position <= p.max) return p.amount;
   }
   return 0;
+}
+
+// For tied players, pool the payouts for all positions they span and split equally.
+// e.g. 2-way tie for 1st: pool positions 1 ($1200) + 2 ($800) = $2000, each gets $1000.
+function assignTiedPayouts(scored) {
+  let i = 0;
+  while (i < scored.length) {
+    const rank = scored[i].rank;
+    // Find all entries sharing this rank
+    let j = i;
+    while (j < scored.length && scored[j].rank === rank) j++;
+    const tiedCount = j - i;
+    // Pool payouts for positions i+1 through j (1-indexed)
+    let pooled = 0;
+    for (let pos = i + 1; pos <= j; pos++) {
+      pooled += getPositionPayout(pos);
+    }
+    const each = Math.floor(pooled / tiedCount);
+    for (let k = i; k < j; k++) {
+      scored[k].payout = each;
+    }
+    i = j;
+  }
 }
 
 const PAR = 72;
@@ -332,17 +355,44 @@ function calculateAllScores(parsedData) {
     };
   });
 
-  // Sort by total points descending
-  scored.sort((a, b) => b.totalPoints - a.totalPoints);
+  // Find the tournament leader's total strokes for tiebreaker comparison
+  let leaderTotalStrokes = null;
+  for (const [, data] of golfers) {
+    if (data.position === 1) {
+      // Sum completed round scores to get total strokes
+      const totalStrokes = data.rounds.reduce((sum, rd) => sum + (rd.score || 0), 0);
+      if (totalStrokes > 0) leaderTotalStrokes = totalStrokes;
+      break;
+    }
+  }
 
-  // Assign ranks (handle ties)
+  // Sort by total points descending, then by tiebreaker (closest to leader's score)
+  scored.sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    if (leaderTotalStrokes !== null) {
+      const aDiff = Math.abs(a.winningScore - leaderTotalStrokes);
+      const bDiff = Math.abs(b.winningScore - leaderTotalStrokes);
+      return aDiff - bDiff;
+    }
+    return 0;
+  });
+
+  // Assign ranks (handle ties — only truly tied if same points AND same tiebreaker distance)
   let rank = 1;
   for (let i = 0; i < scored.length; i++) {
-    if (i > 0 && scored[i].totalPoints < scored[i-1].totalPoints) {
-      rank = i + 1;
+    if (i > 0) {
+      const prev = scored[i-1];
+      const curr = scored[i];
+      const samePoints = curr.totalPoints === prev.totalPoints;
+      const sameTB = curr.winningScore === prev.winningScore;
+      if (!samePoints || !sameTB) {
+        rank = i + 1;
+      }
     }
     scored[i].rank = rank;
   }
+
+  assignTiedPayouts(scored);
 
   return scored;
 }
@@ -505,7 +555,7 @@ function renderRow(entry) {
   const starSvg = '<svg onclick="toggleFavorite(\'' + escapedName + '\', event)" class="w-5 h-5 cursor-pointer transition-colors shrink-0 ' + (isFav ? 'text-augusta-gold' : 'text-gray-600 hover:text-gray-400') + '" fill="' + (isFav ? 'currentColor' : 'none') + '" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>';
 
   const bgClass = isFav ? "bg-augusta-gold/10 border border-augusta-gold/30" : "bg-board-card hover:bg-board-hover border border-board-border";
-  const payout = getPayout(entry.rank);
+  const payout = entry.payout || 0;
   const payoutBadge = payout > 0 ? ' <span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">$' + payout.toLocaleString() + '</span>' : '';
 
   // Rank movement indicator
@@ -685,9 +735,9 @@ function renderPayouts() {
   html += '<p class="text-gray-500 text-xs mb-4">Top 41 participants win prizes</p>';
   html += '<div class="space-y-0.5">';
 
-  const inMoney = allScored.filter(e => getPayout(e.rank) > 0);
+  const inMoney = allScored.filter(e => (e.payout || 0) > 0);
   for (const entry of inMoney) {
-    const payout = getPayout(entry.rank);
+    const payout = entry.payout || 0;
     const isFav = favorites.has(entry.name);
     const pointsColor = entry.totalPoints > 0 ? 'text-green-400' : entry.totalPoints < 0 ? 'text-red-400' : 'text-gray-400';
     const payoutColor = payout >= 500 ? 'text-augusta-gold font-bold' : payout >= 100 ? 'text-green-400' : 'text-gray-300';
