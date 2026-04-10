@@ -1099,7 +1099,7 @@ function renderPayouts() {
     const pointsColor = entry.totalPoints > 0 ? 'text-green-400' : entry.totalPoints < 0 ? 'text-red-400' : 'text-gray-400';
     const payoutColor = payout >= 500 ? 'text-augusta-gold font-bold' : payout >= 100 ? 'text-green-400' : 'text-gray-300';
 
-    html += '<div onclick="switchTab(\'leaderboard\');setTimeout(function(){toggleEntryExpand(' + entry.entryIdx + ')},50)" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
+    html += '<div onclick="expandFromPayouts(' + entry.entryIdx + ')" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
     html += '<div class="flex items-center gap-2">';
     html += '<span class="text-sm font-bold text-gray-400 w-6">' + entry.rank + '</span>';
     html += '<span class="text-sm ' + (isFav ? 'text-augusta-gold font-semibold' : 'text-white') + '">' + entry.name + '</span>';
@@ -1247,6 +1247,14 @@ function toggleEntryExpand(entryIdx) {
     expandedEntries.add(entryIdx);
   }
   renderLeaderboard();
+}
+
+function expandFromPayouts(entryIdx) {
+  switchTab('leaderboard');
+  expandedEntries.add(entryIdx);
+  renderLeaderboard();
+  var row = document.querySelector('[aria-label="View details for ' + allScored.find(function(e){return e.entryIdx===entryIdx}).name + '"]');
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderDetailCard(entry, isModal = false) {
