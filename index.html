@@ -681,7 +681,7 @@ function renderRow(entry) {
     moverClass = ' mover-down';
   }
 
-  let html = '<div class="cursor-pointer rounded-lg ' + bgClass + moverClass + ' transition-all duration-150">';
+  let html = '<div class="cursor-pointer rounded-lg ' + bgClass + moverClass + ' transition-all duration-150" tabindex="0" role="button" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showDetail(' + entry.entryIdx + ')}">';
 
   // Mobile layout
   html += '<div class="md:hidden p-3 flex items-center justify-between">';
