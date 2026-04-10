@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -42,6 +42,8 @@ body { font-family: 'Inter', sans-serif; }
 .rank-gold { background: linear-gradient(135deg, #c8a951 0%, #f0d878 50%, #c8a951 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-silver { background: linear-gradient(135deg, #9ca3af 0%, #d1d5db 50%, #9ca3af 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-bronze { background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #b45309 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+:focus-visible { outline: 2px solid #c8a951; outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 </style>
 </head>
 <body class="bg-board-bg text-gray-200 min-h-screen">
