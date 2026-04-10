@@ -923,18 +923,37 @@ let prevSimResults = null;
 let simProbHistory = []; // last 20 snapshots for sparklines
 let simRunning = false;
 
-// Box-Muller Normal RNG — returns z ~ Normal(0,1)
+// Seeded PRNG (mulberry32) — deterministic results for same input data
+let _seed = 1;
+function seededRandom() {
+  _seed |= 0; _seed = _seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(_seed ^ _seed >>> 15, 1 | _seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+}
+
+// Box-Muller Normal RNG — returns z ~ Normal(0,1), uses seeded PRNG
 function normalRandom() {
   let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = seededRandom();
+  while (v === 0) v = seededRandom();
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// Hash seed from string — simple djb2
+function hashToSeed(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) + str.charCodeAt(i);
+  return h >>> 0;
 }
 
 function computeSimHash(pd) {
   if (!pd || !pd.golfers) return "";
+  // Sort golfer keys so ESPN reordering tied golfers doesn't change the hash
+  const sortedNames = [...pd.golfers.keys()].sort();
   let h = pd.currentRound + "|" + pd.eventStatus + "|";
-  for (const [n, d] of pd.golfers) {
+  for (const n of sortedNames) {
+    const d = pd.golfers.get(n);
     h += n + ":" + d.rounds.map(r => (r.score||0) + "," + r.holesCompleted).join(";") + "|";
   }
   return h;
@@ -1138,6 +1157,8 @@ function simulateOneTournament(projData, pinnedGolferIdx, pinnedScore) {
 function runSimulations(pd, numSims) {
   numSims = numSims || 3000;
   if (!pd || !pd.golfers || pd.golfers.size === 0) return null;
+  // Seed PRNG from data hash so identical data always produces identical probabilities
+  _seed = hashToSeed(computeSimHash(pd));
   const t0 = performance.now();
   const projData = buildGolferProjections(pd);
 
