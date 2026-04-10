@@ -37,6 +37,8 @@ body { font-family: 'Inter', sans-serif; }
 @keyframes glowDown { 0% { background-color: rgba(239,68,68,0.15); } 100% { background-color: transparent; } }
 .bounce-in { animation: bounceIn 0.4s cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes bounceIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 .rank-gold { background: linear-gradient(135deg, #c8a951 0%, #f0d878 50%, #c8a951 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-silver { background: linear-gradient(135deg, #9ca3af 0%, #d1d5db 50%, #9ca3af 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-bronze { background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #b45309 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -78,12 +80,12 @@ body { font-family: 'Inter', sans-serif; }
 
 <!-- Tab Navigation -->
 <div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40">
-  <div class="max-w-7xl mx-auto px-4 flex gap-1">
-    <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn px-4 py-2 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
-    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
-    <button onclick="switchTab('my-team')" id="tab-my-team" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
-    <button onclick="switchTab('payouts')" id="tab-payouts" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
-    <button onclick="switchTab('projections')" id="tab-projections" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Projections</button>
+  <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto scrollbar-hide">
+    <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
+    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
+    <button onclick="switchTab('my-team')" id="tab-my-team" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
+    <button onclick="switchTab('payouts')" id="tab-payouts" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
+    <button onclick="switchTab('projections')" id="tab-projections" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Projections</button>
   </div>
 </div>
 
@@ -186,8 +188,9 @@ function normalizeName(name) {
 
 // ===== SCORING ENGINE =====
 function parseRelativeScore(displayValue) {
-  if (!displayValue || displayValue === "E") return 0;
-  return -parseInt(displayValue, 10); // "-5" -> 5 (under par = positive), "+3" -> -3
+  if (!displayValue || displayValue === "E" || displayValue === "-") return 0;
+  const parsed = parseInt(displayValue, 10);
+  return isNaN(parsed) ? 0 : -parsed; // "-5" -> 5 (under par = positive), "+3" -> -3
 }
 
 function parseESPNData(apiData) {
@@ -271,6 +274,24 @@ function parseESPNData(apiData) {
     }
   }
 
+  // Compute positions from scores when ESPN doesn't provide them
+  const hasPositions = [...golfers.values()].some(g => g.position !== null);
+  if (!hasPositions) {
+    const sorted = [...golfers.entries()]
+      .filter(([, g]) => g.isActive)
+      .map(([name, g]) => {
+        const scoreNum = g.overallScore === "E" ? 0 : parseInt(g.overallScore, 10) || 0;
+        return { name, scoreNum };
+      })
+      .sort((a, b) => a.scoreNum - b.scoreNum);
+    let rank = 1;
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i].scoreNum !== sorted[i - 1].scoreNum) rank = i + 1;
+      const g = golfers.get(sorted[i].name);
+      g.position = rank;
+    }
+  }
+
   // Check if the current round is complete (all active golfers who started it have finished 18 holes)
   let roundComplete = false;
   if (currentRound > 0 && eventStatus === "In Progress") {
@@ -281,10 +302,17 @@ function parseESPNData(apiData) {
     );
   }
 
-  return { golfers, eventStatus, currentRound, roundComplete, worstScorePerRound };
+  // Check if the tournament is complete (all 4 rounds done for active golfers)
+  let tournamentComplete = false;
+  if (currentRound === 4) {
+    const activeGolfers = [...golfers.values()].filter(g => g.isActive);
+    tournamentComplete = activeGolfers.length > 0 && activeGolfers.every(g => g.rounds[3].complete);
+  }
+
+  return { golfers, eventStatus, currentRound, roundComplete, worstScorePerRound, tournamentComplete };
 }
 
-function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores, currentRound) {
+function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores, currentRound, tournamentComplete) {
   if (!golferData) return { total: 0, rounds: [0,0,0,0], bonus: 0, roundLeader: 0 };
 
   const multipliers = [1, 2, 3, 4];
@@ -312,10 +340,10 @@ function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores,
     // else: round hasn't happened yet, 0 points
   }
 
-  // Finish position bonus
+  // Finish position bonus (only after tournament is complete)
   let finishBonus = 0;
   const pos = golferData.position;
-  if (pos) {
+  if (pos && tournamentComplete) {
     if (pos === 1) finishBonus = 15;
     else if (pos >= 2 && pos <= 5) finishBonus = 10;
     else if (pos >= 6 && pos <= 10) finishBonus = 7;
@@ -330,19 +358,29 @@ function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores,
 function calculateAllScores(parsedData) {
   const { golfers, currentRound } = parsedData;
 
-  // Find round leaders for rounds 1-3
+  // Find cumulative tournament leaders after each round (R1-R3)
+  // Leader = best cumulative relToPar through that round (positive = under par)
+  // Shows live during in-progress rounds, not just after completion
   const roundLeaders = [[], [], []]; // rounds 1-3
   for (let r = 0; r < 3; r++) {
-    let bestScore = -Infinity;
+    // Only consider this round if at least one golfer has started it
+    let roundStarted = false;
+    for (const [, data] of golfers) {
+      if (data.rounds[r].holesCompleted > 0) { roundStarted = true; break; }
+    }
+    if (!roundStarted) continue;
+
+    let bestCumulative = -Infinity;
     for (const [name, data] of golfers) {
-      if (data.rounds[r].complete) {
-        const score = data.rounds[r].relToPar;
-        if (score > bestScore) {
-          bestScore = score;
-          roundLeaders[r] = [name];
-        } else if (score === bestScore) {
-          roundLeaders[r].push(name);
-        }
+      if (!data.isActive) continue;
+      // Cumulative relToPar through this round
+      let cumulative = 0;
+      for (let i = 0; i <= r; i++) cumulative += data.rounds[i].relToPar;
+      if (cumulative > bestCumulative) {
+        bestCumulative = cumulative;
+        roundLeaders[r] = [name];
+      } else if (cumulative === bestCumulative) {
+        roundLeaders[r].push(name);
       }
     }
   }
@@ -358,7 +396,7 @@ function calculateAllScores(parsedData) {
       const normalized = normalizeName(playerName);
       const golferData = golfers.get(normalized);
 
-      const pts = calculateGolferPoolPoints(normalized, golferData, isBonus, parsedData.worstScorePerRound, currentRound);
+      const pts = calculateGolferPoolPoints(normalized, golferData, isBonus, parsedData.worstScorePerRound, currentRound, parsedData.tournamentComplete);
 
       // Round leader bonus
       let leaderBonus = 0;
@@ -378,6 +416,7 @@ function calculateAllScores(parsedData) {
         salary: FIELD_SALARIES[playerName] || 0,
         overallScore: golferData?.overallScore || "N/A",
         position: golferData?.position || null,
+        isActive: golferData?.isActive !== false,
         ...pts
       });
     }
@@ -691,7 +730,7 @@ function renderStats() {
     }
 
     // Calculate pool points this golfer generates (as non-bonus)
-    const pts = calculateGolferPoolPoints(normalizedName, data, false, lastData.worstScorePerRound, lastData.currentRound);
+    const pts = calculateGolferPoolPoints(normalizedName, data, false, lastData.worstScorePerRound, lastData.currentRound, lastData.tournamentComplete);
 
     golferStats.push({
       name: data.displayName,
@@ -858,17 +897,22 @@ function renderDetailCard(entry, isModal = false) {
 
   // Players table
   html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase border-b border-board-border">';
-  html += '<th class="text-left pb-2 pr-2">Player</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
+  html += '<th class="text-left pb-2 pr-2">Player</th><th class="text-center pb-2 px-1">Pos</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
 
   let totalSalary = 0;
   for (const p of entry.players) {
     const ptsColor = p.total > 0 ? "text-green-400" : p.total < 0 ? "text-red-400" : "text-gray-500";
     if (!p.isBonus) totalSalary += p.salary;
 
-    html += '<tr class="border-t border-board-border/50">';
-    html += '<td class="py-2 pr-2"><span class="font-medium text-white">' + p.displayName + '</span>';
+    const cutRisk = p.isActive && lastData && lastData.currentRound <= 2 && p.position && p.position > 50;
+    const rowBg = !p.isActive ? ' bg-red-900/20' : cutRisk ? ' bg-orange-900/15' : '';
+    html += '<tr class="border-t border-board-border/50' + rowBg + '">';
+    html += '<td class="py-2 pr-2"><span class="font-medium ' + (!p.isActive ? 'text-red-400' : cutRisk ? 'text-orange-400' : 'text-white') + '">' + p.displayName + '</span>';
+    if (!p.isActive) html += ' <span class="text-[10px] bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
+    else if (cutRisk) html += ' <span class="text-[10px] bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
     if (p.isBonus) html += ' <span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
     html += '</td>';
+    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-500 text-xs">' + p.salary + '</td>';
     html += '<td class="py-2 px-1 text-center font-mono">' + (p.overallScore || "-") + '</td>';
     for (let r = 0; r < 4; r++) {
@@ -1096,14 +1140,15 @@ function simulateOneTournament(projData, pinnedGolferIdx, pinnedScore) {
     finishPos[golferTotals[i].gi] = fRank;
   }
 
-  // Round leaders R1-R3 (stored as sets of golfer indices)
+  // Cumulative tournament leaders R1-R3 (matches main scoring engine)
   const leaderSets = [new Set(), new Set(), new Set()];
   for (let r = 0; r < 3; r++) {
-    let bestRelToPar = -999;
+    let bestCumulative = -999;
     for (let gi = 0; gi < N; gi++) {
-      const rtp = 72 - actualScores[gi * 4 + r];
-      if (rtp > bestRelToPar) { bestRelToPar = rtp; leaderSets[r] = new Set([gi]); }
-      else if (rtp === bestRelToPar) leaderSets[r].add(gi);
+      let cumulative = 0;
+      for (let i = 0; i <= r; i++) cumulative += (72 - actualScores[gi * 4 + i]);
+      if (cumulative > bestCumulative) { bestCumulative = cumulative; leaderSets[r] = new Set([gi]); }
+      else if (cumulative === bestCumulative) leaderSets[r].add(gi);
     }
   }
 
