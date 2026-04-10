@@ -2070,7 +2070,8 @@ function buildSwingOMeter(leverage) {
     nameCol.appendChild(nm);
     const detail = document.createElement("div");
     detail.className = "text-gray-400 text-xs";
-    detail.textContent = g.isOnCourse ? "Thru " + g.thru + " (" + (g.roundScore >= 0 ? "+" : "") + g.roundScore + ")" : g.ownerCount + " teams";
+    var displayScore = -g.roundScore; // internal convention: positive=under par; golf display: negative=under par
+    detail.textContent = g.isOnCourse ? "Thru " + g.thru + " (" + (displayScore === 0 ? "E" : (displayScore > 0 ? "+" : "") + displayScore) + ")" : g.ownerCount + " teams";
     nameCol.appendChild(detail);
     row.appendChild(nameCol);
 
