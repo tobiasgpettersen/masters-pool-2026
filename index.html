@@ -196,6 +196,7 @@ function parseESPNData(apiData) {
     const normalizedName = normalizeName(name);
     const overallScore = c.score || "E";
     const sortOrder = c.sortOrder || 999;
+    const isActive = !(/cut|withdraw|disqualif/i.test(c.status?.type?.description || ""));
 
     const rounds = [];
     const roundLinescores = c.linescores || [];
@@ -230,7 +231,8 @@ function parseESPNData(apiData) {
       rounds,
       overallScore,
       position,
-      sortOrder
+      sortOrder,
+      isActive
     });
   }
 
@@ -244,12 +246,14 @@ function parseESPNData(apiData) {
     }
   }
 
-  // Check if the current round is complete (all golfers who started it have finished 18 holes)
+  // Check if the current round is complete (all active golfers who started it have finished 18 holes)
   let roundComplete = false;
   if (currentRound > 0 && eventStatus === "In Progress") {
     const ri = currentRound - 1;
     const golfersInRound = [...golfers.values()].filter(g => g.rounds[ri].holesCompleted > 0);
-    roundComplete = golfersInRound.length > 0 && golfersInRound.every(g => g.rounds[ri].complete);
+    roundComplete = golfersInRound.length > 0 && golfersInRound.every(g =>
+      g.rounds[ri].complete || !g.isActive
+    );
   }
 
   return { golfers, eventStatus, currentRound, roundComplete, worstScorePerRound };
