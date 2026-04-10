@@ -165,6 +165,12 @@ function assignTiedPayouts(scored) {
   }
 }
 
+// Polyfill for Safari < 16.1
+if (typeof requestIdleCallback === "undefined") {
+  window.requestIdleCallback = function(cb) { return setTimeout(cb, 1); };
+  window.cancelIdleCallback = function(id) { clearTimeout(id); };
+}
+
 const PAR = 72;
 const ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?tournamentId=401811941";
 const POLL_INTERVAL = 30000;
@@ -470,27 +476,33 @@ async function fetchAndScore() {
     renderCurrentTab();
 
     // Run projections in background on every data change (so results are ready when user clicks tab)
-    const simHash = computeSimHash(lastData);
-    if (simHash !== lastSimHash) {
-      requestIdleCallback(function() {
-        prevSimResults = lastSimResults;
-        lastSimResults = runSimulations(lastData);
-        lastSimHash = simHash;
-        lastLeverageResults = null;
-        leverageComputing = false;
-        if (lastSimResults) {
-          simProbHistory.push(lastSimResults.slice(0, 20).map(function(r) { return { name: r.name, winPct: r.winPct }; }));
-          if (simProbHistory.length > 20) simProbHistory.shift();
-        }
-        // Kick off leverage computation too
+    // Wrapped in its own try/catch so a sim error never shows OFFLINE
+    try {
+      const simHash = computeSimHash(lastData);
+      if (simHash !== lastSimHash) {
         requestIdleCallback(function() {
-          lastLeverageResults = computeLeverage(lastData);
-          leverageComputing = false;
-          if (currentTab === "projections") renderProjections();
+          try {
+            prevSimResults = lastSimResults;
+            lastSimResults = runSimulations(lastData);
+            lastSimHash = simHash;
+            lastLeverageResults = null;
+            leverageComputing = false;
+            if (lastSimResults) {
+              simProbHistory.push(lastSimResults.slice(0, 20).map(function(r) { return { name: r.name, winPct: r.winPct }; }));
+              if (simProbHistory.length > 20) simProbHistory.shift();
+            }
+            requestIdleCallback(function() {
+              try {
+                lastLeverageResults = computeLeverage(lastData);
+                leverageComputing = false;
+                if (currentTab === "projections") renderProjections();
+              } catch (e) { console.error("Leverage error:", e); }
+            });
+            if (currentTab === "projections") renderProjections();
+          } catch (e) { console.error("Simulation error:", e); }
         });
-        if (currentTab === "projections") renderProjections();
-      });
-    }
+      }
+    } catch (e) { console.error("Projections init error:", e); }
 
     // Clear movement indicators after 4 seconds
     setTimeout(() => {
