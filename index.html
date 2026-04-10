@@ -180,6 +180,7 @@ if (typeof requestIdleCallback === "undefined") {
 
 const PAR = 72;
 const ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?tournamentId=401811941";
+const ESPN_CORE_COMPETITORS = "https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/401811941/competitions/401811941/competitors";
 const POLL_INTERVAL = 30000;
 
 // ===== NAME NORMALIZATION =====
@@ -212,6 +213,7 @@ function parseESPNData(apiData) {
   for (const c of competitors) {
     const name = c.athlete?.displayName || "";
     const normalizedName = normalizeName(name);
+    const espnId = c.id || null;
     const overallScore = c.score || "E";
     const sortOrder = c.sortOrder || 999;
     const isActive = !(/cut|withdraw|disqualif/i.test(c.status?.type?.description || ""));
@@ -261,11 +263,13 @@ function parseESPNData(apiData) {
 
     golfers.set(normalizedName, {
       displayName: name,
+      espnId,
       rounds,
       overallScore,
       position,
       sortOrder,
-      isActive
+      isActive,
+      teeTime: null
     });
   }
 
@@ -315,6 +319,41 @@ function parseESPNData(apiData) {
   }
 
   return { golfers, eventStatus, currentRound, roundComplete, worstScorePerRound, tournamentComplete };
+}
+
+// Fetch tee times from ESPN core API and merge into golfer data
+async function fetchTeeTimes(parsedData) {
+  if (!parsedData || parsedData.tournamentComplete) return;
+  try {
+    // Build espnId -> normalizedName lookup
+    const idToName = new Map();
+    for (const [name, data] of parsedData.golfers) {
+      if (data.espnId) idToName.set(data.espnId, name);
+    }
+    if (idToName.size === 0) return;
+
+    // Fetch statuses in parallel (batches of 20 to be polite)
+    const ids = [...idToName.keys()];
+    for (let i = 0; i < ids.length; i += 20) {
+      const batch = ids.slice(i, i + 20);
+      const results = await Promise.all(batch.map(function(id) {
+        return fetch(ESPN_CORE_COMPETITORS + "/" + id + "/status")
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .catch(function() { return null; });
+      }));
+      for (let j = 0; j < results.length; j++) {
+        const status = results[j];
+        if (!status || !status.teeTime) continue;
+        const golferName = idToName.get(batch[j]);
+        if (golferName) {
+          const golfer = parsedData.golfers.get(golferName);
+          if (golfer) golfer.teeTime = status.teeTime;
+        }
+      }
+    }
+  } catch (e) {
+    // Tee times are non-critical — silently ignore errors
+  }
 }
 
 function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores, currentRound, tournamentComplete) {
@@ -414,6 +453,14 @@ function calculateAllScores(parsedData) {
       pts.total += leaderBonus;
 
       totalPoints += pts.total;
+      // Current-round thru info
+      const currentRdIdx = currentRound - 1;
+      const currentRdData = golferData?.rounds?.[currentRdIdx];
+      const thru = currentRdData ? currentRdData.holesCompleted : 0;
+      const isOnCourse = currentRdIdx >= 0 && currentRdData &&
+        currentRdData.holesCompleted > 0 && !currentRdData.complete;
+      const roundComplete = currentRdData ? currentRdData.complete : false;
+
       playerDetails.push({
         name: playerName,
         displayName: golferData?.displayName || playerName,
@@ -422,6 +469,10 @@ function calculateAllScores(parsedData) {
         overallScore: golferData?.overallScore || "N/A",
         position: golferData?.position || null,
         isActive: golferData?.isActive !== false,
+        thru,
+        isOnCourse,
+        roundComplete,
+        teeTime: golferData?.teeTime || null,
         ...pts
       });
     }
@@ -490,6 +541,7 @@ async function fetchAndScore() {
     if (!resp.ok) throw new Error("ESPN API error: " + resp.status);
     const data = await resp.json();
     lastData = parseESPNData(data);
+    await fetchTeeTimes(lastData);
     lastUpdate = new Date();
 
     // Save previous ranks before recalculating
@@ -918,6 +970,15 @@ function renderDetailCard(entry, isModal = false) {
     html += '<td class="py-2 pr-2"><span class="font-medium ' + (!p.isActive ? 'text-red-400' : cutRisk ? 'text-orange-400' : 'text-white') + '">' + p.displayName + '</span>';
     if (!p.isActive) html += ' <span class="text-xs bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
     else if (cutRisk) html += ' <span class="text-xs bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
+    if (p.isOnCourse) {
+      html += ' <span class="text-xs bg-blue-500/20 text-blue-400 px-1 rounded">Thru ' + p.thru + '</span>';
+    } else if (p.isActive && p.roundComplete) {
+      html += ' <span class="text-xs bg-green-500/20 text-green-400 px-1 rounded">F</span>';
+    } else if (p.isActive && p.teeTime) {
+      const tee = new Date(p.teeTime);
+      const timeStr = tee.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      html += ' <span class="text-xs bg-gray-500/20 text-gray-400 px-1 rounded">' + timeStr + '</span>';
+    }
     if (p.isBonus) html += ' <span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
     html += '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
