@@ -798,9 +798,10 @@ function renderStats() {
 function renderFindMe() {
   const container = document.getElementById("my-team-tab");
   let html = '<div class="bg-board-card border border-board-border rounded-xl p-4">';
-  html += '<h3 class="text-augusta-gold font-bold text-lg mb-3">Find Your Team</h3>';
-  html += '<input type="text" id="findMeInput" placeholder="Type your name..." oninput="filterFindMe(this.value)" class="w-full bg-board-bg border border-board-border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-augusta-gold mb-4">';
-  html += '<div id="findMeResults"></div></div>';
+  html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">Find Your Team</h3>';
+  html += '<p class="text-gray-400 text-sm mb-3">Search by name to see your picks, scores, and current standing.</p>';
+  html += '<input type="text" id="findMeInput" placeholder="Type your name..." oninput="filterFindMe(this.value)" class="w-full bg-board-bg border border-board-border rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-augusta-gold mb-4" aria-label="Search for your name">';
+  html += '<div id="findMeResults"><div class="text-center py-6"><svg class="w-10 h-10 mx-auto text-gray-600 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg><p class="text-gray-400 text-sm">Search from 501 participants</p></div></div></div>';
   container.innerHTML = html;
 }
 
