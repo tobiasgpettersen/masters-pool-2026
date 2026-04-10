@@ -81,7 +81,8 @@ body { font-family: 'Inter', sans-serif; }
 </div>
 
 <!-- Tab Navigation -->
-<div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40">
+<div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40 relative">
+  <div class="md:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-board-card to-transparent pointer-events-none z-10"></div>
   <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Pool views">
     <button onclick="switchTab('leaderboard')" id="tab-leaderboard" role="tab" aria-selected="true" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
     <button onclick="switchTab('stats')" id="tab-stats" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
