@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0.2] - 2026-04-10
+
+### Changed
+- Worst score penalty for cut players now tracks live during in-progress rounds instead of waiting for the first player to finish all 18 holes
+- Penalty only applies when the worst score is at or above par (72+), preventing cut players from receiving positive points during early-round under-par play
+
 ## [0.1.0.1] - 2026-04-10
 
 ### Fixed
