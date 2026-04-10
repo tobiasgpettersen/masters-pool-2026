@@ -551,10 +551,14 @@ function sortStats(col) {
     statsSortCol = col;
     statsSortDir = 'desc';
   }
+  trackEvent('sort/' + col + '-' + statsSortDir, 'Sort: ' + col + ' ' + statsSortDir);
   renderStats();
 }
 
 function toggleStatsExpand(normalizedName) {
+  if (expandedStatsGolfer !== normalizedName) {
+    trackEvent('stats-expand/' + normalizedName, 'Stats expand: ' + normalizedName);
+  }
   expandedStatsGolfer = expandedStatsGolfer === normalizedName ? null : normalizedName;
   renderStats();
 }
@@ -678,12 +682,22 @@ function saveFavorites() {
 }
 function toggleFavorite(name, evt) {
   evt.stopPropagation();
+  var action = favorites.has(name) ? 'unfavorite' : 'favorite';
   if (favorites.has(name)) favorites.delete(name);
   else favorites.add(name);
+  trackEvent(action + '/' + name, action + ': ' + name);
   saveFavorites();
   renderCurrentTab();
 }
 let favorites = loadFavorites();
+
+// ===== ANALYTICS =====
+function trackEvent(eventPath, title) {
+  if (typeof goatcounter !== 'undefined' && goatcounter.count) {
+    goatcounter.count({ path: eventPath, title: title || eventPath, event: true });
+  }
+}
+let searchTrackTimeout = null;
 
 // ===== UI RENDERING =====
 let currentTab = "leaderboard";
@@ -692,6 +706,7 @@ let selectedParticipant = null;
 let expandedEntries = new Set();
 
 function switchTab(tab) {
+  trackEvent('tab/' + tab, 'Tab: ' + tab);
   currentTab = tab;
   document.querySelectorAll(".tab-btn").forEach(b => {
     const isActive = b.id === "tab-" + tab;
@@ -1243,6 +1258,8 @@ function toggleRuleSection(btn) {
   if (content.style.display === 'none') {
     content.style.display = '';
     chevron.style.transform = '';
+    var sectionName = btn.textContent.trim();
+    trackEvent('rules/' + sectionName, 'Rules: ' + sectionName);
   } else {
     content.style.display = 'none';
     chevron.style.transform = 'rotate(-90deg)';
@@ -1254,11 +1271,15 @@ function toggleEntryExpand(entryIdx) {
     expandedEntries.delete(entryIdx);
   } else {
     expandedEntries.add(entryIdx);
+    var entry = allScored.find(function(e){return e.entryIdx===entryIdx});
+    if (entry) trackEvent('expand/' + entry.name, 'Expand: ' + entry.name);
   }
   renderLeaderboard();
 }
 
 function expandFromPayouts(entryIdx) {
+  var entry = allScored.find(function(e){return e.entryIdx===entryIdx});
+  if (entry) trackEvent('payouts-click/' + entry.name, 'Payouts click: ' + entry.name);
   switchTab('leaderboard');
   expandedEntries.add(entryIdx);
   renderLeaderboard();
@@ -1345,6 +1366,12 @@ function highlightMatch(text, query) {
 document.getElementById("searchInput").addEventListener("input", function(e) {
   searchQuery = e.target.value;
   renderLeaderboard();
+  clearTimeout(searchTrackTimeout);
+  if (searchQuery.length >= 3) {
+    searchTrackTimeout = setTimeout(function() {
+      trackEvent('search/' + searchQuery.toLowerCase(), 'Search: ' + searchQuery);
+    }, 1000);
+  }
 });
 
 document.addEventListener("keydown", function(e) {
