@@ -91,6 +91,7 @@ h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
     <button onclick="switchTab('my-team')" id="tab-my-team" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
     <button onclick="switchTab('payouts')" id="tab-payouts" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
     <button onclick="switchTab('projections')" id="tab-projections" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Projections</button>
+    <button onclick="switchTab('rules')" id="tab-rules" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Rules</button>
   </div>
 </div>
 
@@ -101,6 +102,7 @@ h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
   <div id="my-team-tab" class="hidden" role="tabpanel" aria-label="Find Me"></div>
   <div id="payouts-tab" class="hidden" role="tabpanel" aria-label="Payouts"></div>
   <div id="projections-tab" class="hidden" role="tabpanel" aria-label="Projections"></div>
+  <div id="rules-tab" class="hidden" role="tabpanel" aria-label="Rules"></div>
 </main>
 
 <!-- Detail Modal -->
@@ -704,6 +706,7 @@ function renderCurrentTab() {
   else if (currentTab === "my-team") renderFindMe();
   else if (currentTab === "payouts") renderPayouts();
   else if (currentTab === "projections") renderProjections();
+  else if (currentTab === "rules") renderRules();
 }
 
 function renderLeaderboard() {
@@ -1125,6 +1128,132 @@ function renderPayouts() {
 
   html += '</div></div></div>';
   container.innerHTML = html;
+}
+
+function renderRules() {
+  const container = document.getElementById("rules-tab");
+  if (container.dataset.rendered) return;
+  container.dataset.rendered = "1";
+
+  let html = '<div class="space-y-4 max-w-3xl mx-auto">';
+
+  // Header
+  html += '<div class="text-center py-4">';
+  html += '<h2 class="text-2xl md:text-3xl font-bold text-white font-display">Pool Rules</h2>';
+  html += '<p class="text-augusta-gold text-sm mt-1">16th Annual Masters Tournament Pool</p>';
+  html += '</div>';
+
+  // Card 1: How It Works
+  html += '<div class="bg-board-card border border-board-border rounded-xl overflow-hidden">';
+  html += '<button onclick="toggleRuleSection(this)" class="w-full flex items-center justify-between px-5 py-4 text-left">';
+  html += '<div class="flex items-center gap-3"><svg class="w-5 h-5 text-augusta-gold shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>';
+  html += '<span class="text-augusta-gold font-bold text-lg">How It Works</span></div>';
+  html += '<svg class="w-5 h-5 text-gray-400 transition-transform duration-200 rule-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+  html += '</button>';
+  html += '<div class="rule-content px-5 pb-5">';
+  html += '<div class="space-y-3 text-sm text-gray-300">';
+  html += '<p>Select a team of <span class="text-white font-semibold">5 players</span> from The Masters field:</p>';
+  html += '<div class="bg-board-bg rounded-lg p-4 space-y-2">';
+  html += '<div class="flex items-start gap-2"><span class="text-augusta-gold font-bold">4</span><span>players selected within a <span class="text-white font-semibold">500-point salary cap</span> (based on World Golf Rankings)</span></div>';
+  html += '<div class="flex items-start gap-2"><span class="text-augusta-gold font-bold">1</span><span>bonus player (Champions Tour / former LIV players ranked outside Top-150 / Amateurs)</span></div>';
+  html += '</div>';
+  html += '<p class="text-gray-400 text-xs">Entry fee: $10 per person. One entry allowed per person.</p>';
+  html += '</div></div></div>';
+
+  // Card 2: Scoring
+  html += '<div class="bg-board-card border border-board-border rounded-xl overflow-hidden">';
+  html += '<button onclick="toggleRuleSection(this)" class="w-full flex items-center justify-between px-5 py-4 text-left">';
+  html += '<div class="flex items-center gap-3"><svg class="w-5 h-5 text-augusta-gold shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>';
+  html += '<span class="text-augusta-gold font-bold text-lg">Scoring</span></div>';
+  html += '<svg class="w-5 h-5 text-gray-400 transition-transform duration-200 rule-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+  html += '</button>';
+  html += '<div class="rule-content px-5 pb-5">';
+  html += '<p class="text-sm text-gray-300 mb-3">Points are awarded (or deducted) for each stroke under (or over) par, multiplied by the round:</p>';
+  html += '<table class="w-full text-sm mb-4"><thead><tr class="text-gray-400 border-b border-board-border"><th class="text-left py-2 font-semibold">Round</th><th class="text-right py-2 font-semibold">Points per Stroke</th></tr></thead><tbody>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">Round 1 (Thursday)</td><td class="text-right font-mono text-white font-semibold">1 pt</td></tr>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">Round 2 (Friday)</td><td class="text-right font-mono text-white font-semibold">2 pts</td></tr>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">Round 3 (Saturday)</td><td class="text-right font-mono text-white font-semibold">3 pts</td></tr>';
+  html += '<tr><td class="py-2.5 text-gray-300">Round 4 (Sunday)</td><td class="text-right font-mono text-white font-semibold">4 pts</td></tr>';
+  html += '</tbody></table>';
+  html += '<div class="bg-board-bg rounded-lg p-4 space-y-3 text-sm">';
+  html += '<div><span class="text-green-400 font-semibold">Under par example:</span> <span class="text-gray-300">Scottie Scheffler shoots 70 in Round 1 = <span class="text-white font-semibold">+2 pts</span> (Par 72 - 70 = 2 strokes under &times; 1 pt)</span></div>';
+  html += '<div><span class="text-red-400 font-semibold">Over par example:</span> <span class="text-gray-300">Jordan Spieth shoots 85 in Round 1 = <span class="text-white font-semibold">-13 pts</span> (Par 72 - 85 = 13 strokes over &times; 1 pt)</span></div>';
+  html += '</div>';
+  html += '<div class="mt-3 bg-augusta-gold/10 border border-augusta-gold/30 rounded-lg p-3 text-sm text-augusta-gold">';
+  html += '<span class="font-semibold">Bonus Player Exception:</span> Your bonus player can only help your team, never hurt it. If they shoot over par, you receive 0 points instead of negative points.';
+  html += '</div>';
+  html += '</div></div>';
+
+  // Card 3: Bonus Points
+  html += '<div class="bg-board-card border border-board-border rounded-xl overflow-hidden">';
+  html += '<button onclick="toggleRuleSection(this)" class="w-full flex items-center justify-between px-5 py-4 text-left">';
+  html += '<div class="flex items-center gap-3"><svg class="w-5 h-5 text-augusta-gold shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>';
+  html += '<span class="text-augusta-gold font-bold text-lg">Bonus Points</span></div>';
+  html += '<svg class="w-5 h-5 text-gray-400 transition-transform duration-200 rule-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+  html += '</button>';
+  html += '<div class="rule-content px-5 pb-5">';
+  html += '<p class="text-sm text-gray-300 mb-3">Additional points awarded based on each player\'s final tournament finish:</p>';
+  html += '<table class="w-full text-sm mb-4"><thead><tr class="text-gray-400 border-b border-board-border"><th class="text-left py-2 font-semibold">Finish Position</th><th class="text-right py-2 font-semibold">Bonus Points</th></tr></thead><tbody>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5"><span class="text-augusta-gold font-semibold">Wins The Masters</span></td><td class="text-right font-mono text-augusta-gold font-bold">15 pts</td></tr>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">2nd - 5th</td><td class="text-right font-mono text-white font-semibold">10 pts</td></tr>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">6th - 10th</td><td class="text-right font-mono text-white font-semibold">7 pts</td></tr>';
+  html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">11th - 20th</td><td class="text-right font-mono text-white font-semibold">5 pts</td></tr>';
+  html += '<tr><td class="py-2.5 text-gray-300">21st - 30th</td><td class="text-right font-mono text-white font-semibold">2 pts</td></tr>';
+  html += '</tbody></table>';
+  html += '<div class="bg-board-bg rounded-lg p-3 text-sm text-gray-300">';
+  html += '<span class="text-white font-semibold">Round Leader Bonus:</span> 5 additional points awarded to the leader(s) after Rounds 1, 2, and 3. All co-leaders receive the bonus.';
+  html += '</div>';
+  html += '</div></div>';
+
+  // Card 4: Withdrawals & Missed Cuts
+  html += '<div class="bg-board-card border border-board-border rounded-xl overflow-hidden">';
+  html += '<button onclick="toggleRuleSection(this)" class="w-full flex items-center justify-between px-5 py-4 text-left">';
+  html += '<div class="flex items-center gap-3"><svg class="w-5 h-5 text-augusta-gold shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+  html += '<span class="text-augusta-gold font-bold text-lg">Withdrawals &amp; Missed Cuts</span></div>';
+  html += '<svg class="w-5 h-5 text-gray-400 transition-transform duration-200 rule-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+  html += '</button>';
+  html += '<div class="rule-content px-5 pb-5">';
+  html += '<div class="space-y-3 text-sm">';
+  html += '<div class="bg-red-500/10 border border-red-500/30 rounded-lg p-3">';
+  html += '<span class="text-red-400 font-semibold">WD / DQ / Missed Cut:</span> <span class="text-gray-300">Any player who withdraws after beginning play, is disqualified, or misses the cut will receive the <span class="text-white font-semibold">highest score of the day</span> for each day they do not compete.</span>';
+  html += '</div>';
+  html += '<div class="bg-board-bg rounded-lg p-3">';
+  html += '<span class="text-white font-semibold">Pre-Tournament Withdrawal:</span> <span class="text-gray-300">If a player withdraws before play begins and you do not email a replacement to the pool administrator, they will be substituted with the next highest-ranked player by World Golf Ranking (regardless of salary level).</span>';
+  html += '</div>';
+  html += '</div></div></div>';
+
+  // Card 5: Other Rules
+  html += '<div class="bg-board-card border border-board-border rounded-xl overflow-hidden">';
+  html += '<button onclick="toggleRuleSection(this)" class="w-full flex items-center justify-between px-5 py-4 text-left">';
+  html += '<div class="flex items-center gap-3"><svg class="w-5 h-5 text-augusta-gold shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+  html += '<span class="text-augusta-gold font-bold text-lg">Other Rules</span></div>';
+  html += '<svg class="w-5 h-5 text-gray-400 transition-transform duration-200 rule-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+  html += '</button>';
+  html += '<div class="rule-content px-5 pb-5">';
+  html += '<div class="space-y-3 text-sm text-gray-300">';
+  html += '<div class="flex items-start gap-3"><span class="text-augusta-gold mt-0.5">&#9679;</span><span>Only <span class="text-white font-semibold">one entry</span> allowed per person.</span></div>';
+  html += '<div class="flex items-start gap-3"><span class="text-augusta-gold mt-0.5">&#9679;</span><span><span class="text-white font-semibold">Tiebreaker:</span> Predicted winning score (selected when submitting your entry).</span></div>';
+  html += '<div class="flex items-start gap-3"><span class="text-augusta-gold mt-0.5">&#9679;</span><span><span class="text-white font-semibold">Payouts:</span> Top 41 finishers in the pool receive prizes. See the <span class="text-augusta-gold cursor-pointer" onclick="switchTab(\'payouts\')">Payouts tab</span> for the full breakdown.</span></div>';
+  html += '<div class="flex items-start gap-3"><span class="text-augusta-gold mt-0.5">&#9679;</span><span><span class="text-white font-semibold">Salary Cap:</span> You must stay within the 500-point cap when selecting your 4 main players. Player values are based on World Golf Rankings as of April 5, 2026.</span></div>';
+  html += '</div></div></div>';
+
+  // Footer
+  html += '<p class="text-center text-gray-500 text-xs py-4">Rules sourced from the official 2026 Masters Pool email by Jeremy Freyman.</p>';
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function toggleRuleSection(btn) {
+  const content = btn.nextElementSibling;
+  const chevron = btn.querySelector('.rule-chevron');
+  if (content.style.display === 'none') {
+    content.style.display = '';
+    chevron.style.transform = '';
+  } else {
+    content.style.display = 'none';
+    chevron.style.transform = 'rotate(-90deg)';
+  }
 }
 
 function showDetail(entryIdx) {
