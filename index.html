@@ -80,7 +80,7 @@ body { font-family: 'Inter', sans-serif; }
 <div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40">
   <div class="max-w-7xl mx-auto px-4 flex gap-1">
     <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn px-4 py-2 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
-    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Golfer Stats</button>
+    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
     <button onclick="switchTab('my-team')" id="tab-my-team" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
     <button onclick="switchTab('payouts')" id="tab-payouts" class="tab-btn px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
   </div>
@@ -652,9 +652,9 @@ function renderStats() {
   let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
 
   // Top performers card
-  html += '<div class="bg-board-card border border-board-border rounded-xl p-4 col-span-full"><h3 class="text-augusta-gold font-bold text-lg mb-3">Golfer Performance</h3>';
+  html += '<div class="bg-board-card border border-board-border rounded-xl p-4 col-span-full"><h3 class="text-augusta-gold font-bold text-lg mb-3">Player Performance</h3>';
   html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase">';
-  html += '<th class="text-left pb-2">Golfer</th><th class="text-center pb-2">Score</th><th class="text-center pb-2">Salary</th><th class="text-center pb-2">Picked</th><th class="text-center pb-2">Pool Pts</th><th class="text-center pb-2">Value</th></tr></thead><tbody>';
+  html += '<th class="text-left pb-2">Player</th><th class="text-center pb-2">Score</th><th class="text-center pb-2">Salary</th><th class="text-center pb-2">Picked</th><th class="text-center pb-2">Pool Pts</th><th class="text-center pb-2">Value</th></tr></thead><tbody>';
 
   for (const g of golferStats) {
     const ptsColor = g.poolPoints > 0 ? "text-green-400" : g.poolPoints < 0 ? "text-red-400" : "text-gray-400";
@@ -799,7 +799,7 @@ function renderDetailCard(entry, isModal = false) {
 
   // Players table
   html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase border-b border-board-border">';
-  html += '<th class="text-left pb-2 pr-2">Golfer</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
+  html += '<th class="text-left pb-2 pr-2">Player</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
 
   let totalSalary = 0;
   for (const p of entry.players) {
@@ -827,7 +827,7 @@ function renderDetailCard(entry, isModal = false) {
   // Salary cap
   html += '<div class="mt-3 flex items-center justify-between text-xs text-gray-500 border-t border-board-border pt-2">';
   html += '<span>Salary used: ' + totalSalary + '/500</span>';
-  html += '<span>5 golfers on team</span>';
+  html += '<span>5 players on team</span>';
   html += '</div></div>';
 
   return html;
