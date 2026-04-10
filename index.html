@@ -198,6 +198,10 @@ function parseESPNData(apiData) {
     const sortOrder = c.sortOrder || 999;
     const isActive = !(/cut|withdraw|disqualif/i.test(c.status?.type?.description || ""));
 
+    // ESPN status.period = current round number, status.thru = holes done in that round
+    const golferPeriod = c.status?.period || 0;
+    const golferThru = c.status?.thru || 0;
+
     const rounds = [];
     const roundLinescores = c.linescores || [];
 
@@ -207,7 +211,18 @@ function parseESPNData(apiData) {
         rounds.push({ score: null, relToPar: 0, holesCompleted: 0, complete: false });
       } else {
         const innerHoles = rd.linescores || [];
-        const holesCompleted = innerHoles.length;
+        let holesCompleted = innerHoles.length;
+
+        // ESPN may not populate all 18 inner hole scores even after a round finishes.
+        // Use the golfer's status.period/thru as more reliable completion indicators.
+        if (golferPeriod > i + 1) {
+          // Golfer has moved on to a later round — this one must be done
+          holesCompleted = Math.max(holesCompleted, 18);
+        } else if (golferPeriod === i + 1 && golferThru > holesCompleted) {
+          // Current round — use thru count if it's more accurate than inner linescores
+          holesCompleted = golferThru;
+        }
+
         const complete = holesCompleted >= 18;
         const relToPar = parseRelativeScore(rd.displayValue);
         const actualScore = complete ? rd.value : null;
