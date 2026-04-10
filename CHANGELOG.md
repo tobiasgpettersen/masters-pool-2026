@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0.1] - 2026-04-10
+
+### Fixed
+- Swing-o-Meter displayed inverted score-to-par values (e.g., showing +3 when golfer was -3 under par)
+- Even par now shows "E" instead of "+0" in Swing-o-Meter
+
 ## [0.1.0.0] - 2026-04-10
 
 ### Added
