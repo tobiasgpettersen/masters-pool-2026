@@ -535,6 +535,52 @@ let lastUpdate = null;
 let allScored = [];
 let prevRanks = new Map(); // name -> previous rank
 
+// Stats tab sort/expand state (persists across 30s data refreshes)
+let statsSortCol = 'poolPoints';
+let statsSortDir = 'desc';
+let expandedStatsGolfer = null;
+
+function sortStats(col) {
+  if (statsSortCol === col) {
+    statsSortDir = statsSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    statsSortCol = col;
+    statsSortDir = 'desc';
+  }
+  renderStats();
+}
+
+function toggleStatsExpand(normalizedName) {
+  expandedStatsGolfer = expandedStatsGolfer === normalizedName ? null : normalizedName;
+  renderStats();
+}
+
+function parseScoreForSort(val) {
+  if (val === null || val === undefined || val === "N/A") return 9999;
+  if (val === "E") return 0;
+  const n = parseInt(val, 10);
+  return isNaN(n) ? 9999 : n;
+}
+
+function getSortValue(g, col) {
+  switch (col) {
+    case 'name': return g.name.toLowerCase();
+    case 'position': return g.position || 9999;
+    case 'overallScore': return parseScoreForSort(g.overallScore);
+    case 'salary': return g.salary;
+    case 'pickCount': return g.pickCount;
+    case 'r1': return g.rounds[0] || 0;
+    case 'r2': return g.rounds[1] || 0;
+    case 'r3': return g.rounds[2] || 0;
+    case 'r4': return g.rounds[3] || 0;
+    case 'finishBonus': return g.finishBonus;
+    case 'roundLeader': return g.roundLeaderBonus;
+    case 'poolPoints': return g.poolPoints;
+    case 'value': return g.salary > 0 ? g.poolPoints / g.salary : (g.poolPoints > 0 ? Infinity : 0);
+    default: return 0;
+  }
+}
+
 async function fetchAndScore() {
   try {
     const resp = await fetch(ESPN_URL);
@@ -772,12 +818,35 @@ function renderRow(entry) {
 
 function renderStats() {
   const container = document.getElementById("stats-tab");
+  // Note: innerHTML usage here is safe — all data comes from ESPN API and hardcoded ENTRIES,
+  // not from user input. No untrusted content is rendered.
   if (!lastData) { container.innerHTML = '<div class="text-center text-gray-400 py-8">Loading...</div>'; return; }
+
+  // Compute round leaders (same logic as calculateAllScores lines 405-430)
+  const roundLeaders = [[], [], []];
+  for (let r = 0; r < 3; r++) {
+    let roundStarted = false;
+    for (const [, data] of lastData.golfers) {
+      if (data.rounds[r].holesCompleted > 0) { roundStarted = true; break; }
+    }
+    if (!roundStarted) continue;
+    let bestCumulative = -Infinity;
+    for (const [name, data] of lastData.golfers) {
+      if (!data.isActive) continue;
+      let cumulative = 0;
+      for (let i = 0; i <= r; i++) cumulative += data.rounds[i].relToPar;
+      if (cumulative > bestCumulative) {
+        bestCumulative = cumulative;
+        roundLeaders[r] = [name];
+      } else if (cumulative === bestCumulative) {
+        roundLeaders[r].push(name);
+      }
+    }
+  }
 
   // Calculate golfer stats
   const golferStats = [];
   for (const [normalizedName, data] of lastData.golfers) {
-    // Count how many entries picked this golfer
     let pickCount = 0;
     let asBonusCount = 0;
     for (const e of ENTRIES) {
@@ -788,43 +857,175 @@ function renderStats() {
       }
     }
 
-    // Calculate pool points this golfer generates (as non-bonus)
     const pts = calculateGolferPoolPoints(normalizedName, data, false, lastData.worstScorePerRound, lastData.currentRound, lastData.tournamentComplete);
+
+    // Round leader bonus
+    let roundLeaderBonus = 0;
+    for (let r = 0; r < 3; r++) {
+      if (roundLeaders[r].includes(normalizedName)) roundLeaderBonus += 5;
+    }
+    pts.total += roundLeaderBonus;
+
+    // Current-round status
+    const currentRdIdx = lastData.currentRound - 1;
+    const currentRdData = data.rounds[currentRdIdx];
+    const thru = currentRdData ? currentRdData.holesCompleted : 0;
+    const isOnCourse = currentRdIdx >= 0 && currentRdData && currentRdData.holesCompleted > 0 && !currentRdData.complete;
+    const roundComplete = currentRdData ? currentRdData.complete : false;
+    const cutRisk = data.isActive && lastData.currentRound <= 2 && data.position && data.position > 50;
+
+    // Ownership
+    const ownershipPct = (pickCount / ENTRIES.length * 100);
+    const ownerEntries = [];
+    for (let ei = 0; ei < allScored.length; ei++) {
+      const entry = allScored[ei];
+      for (const p of entry.players) {
+        if (normalizeName(p.name) === normalizedName) {
+          ownerEntries.push({ name: entry.name, rank: entry.rank, points: entry.totalPoints, isBonus: p.isBonus });
+          break;
+        }
+      }
+    }
 
     golferStats.push({
       name: data.displayName,
+      normalizedName,
       overallScore: data.overallScore,
       position: data.position,
       pickCount,
       asBonusCount,
       poolPoints: pts.total,
       rounds: pts.rounds,
-      salary: FIELD_SALARIES[Object.keys(FIELD_SALARIES).find(k => normalizeName(k) === normalizedName)] || 0
+      finishBonus: pts.bonus,
+      roundLeaderBonus,
+      salary: FIELD_SALARIES[Object.keys(FIELD_SALARIES).find(k => normalizeName(k) === normalizedName)] || 0,
+      isActive: data.isActive,
+      isOnCourse,
+      thru,
+      roundComplete,
+      teeTime: data.teeTime,
+      cutRisk,
+      ownershipPct,
+      ownerEntries
     });
   }
 
-  // Sort by pool points descending
-  golferStats.sort((a, b) => b.poolPoints - a.poolPoints);
+  // Sort
+  golferStats.sort(function(a, b) {
+    const aVal = getSortValue(a, statsSortCol);
+    const bVal = getSortValue(b, statsSortCol);
+    const dir = statsSortDir === 'asc' ? 1 : -1;
+    if (statsSortCol === 'name') return dir * (aVal < bVal ? -1 : aVal > bVal ? 1 : 0);
+    if (aVal === bVal) return 0;
+    return dir * (aVal < bVal ? -1 : 1);
+  });
 
-  let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+  // Sort arrow helper
+  function sortArrow(col) {
+    if (statsSortCol !== col) return '';
+    return statsSortDir === 'desc' ? ' \u25BC' : ' \u25B2';
+  }
 
-  // Top performers card
+  var html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+
+  // Main performance table
   html += '<div class="bg-board-card border border-board-border rounded-xl p-4 col-span-full"><h3 class="text-augusta-gold font-bold text-lg mb-3">Player Performance</h3>';
   html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-400 text-xs uppercase">';
-  html += '<th class="text-left pb-2">Player</th><th class="text-center pb-2">Score</th><th class="text-center pb-2">Salary</th><th class="text-center pb-2">Picked</th><th class="text-center pb-2">Pool Pts</th><th class="text-center pb-2">Value</th></tr></thead><tbody>';
+  html += '<th class="text-left pb-2 pr-2 cursor-pointer hover:text-white select-none" onclick="sortStats(\'name\')">Player' + sortArrow('name') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none" onclick="sortStats(\'position\')">Pos' + sortArrow('position') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none" onclick="sortStats(\'overallScore\')">Score' + sortArrow('overallScore') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'salary\')">$' + sortArrow('salary') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none" onclick="sortStats(\'pickCount\')">Picked' + sortArrow('pickCount') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r1\')">R1' + sortArrow('r1') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r2\')">R2' + sortArrow('r2') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r3\')">R3' + sortArrow('r3') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r4\')">R4' + sortArrow('r4') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'finishBonus\')">Fin' + sortArrow('finishBonus') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'roundLeader\')">Ldr' + sortArrow('roundLeader') + '</th>';
+  html += '<th class="text-right pb-2 cursor-pointer hover:text-white select-none" onclick="sortStats(\'poolPoints\')">Pts' + sortArrow('poolPoints') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'value\')">Val' + sortArrow('value') + '</th>';
+  html += '</tr></thead><tbody>';
 
   for (const g of golferStats) {
     const ptsColor = g.poolPoints > 0 ? "text-green-400" : g.poolPoints < 0 ? "text-red-400" : "text-gray-400";
     const value = g.salary > 0 ? (g.poolPoints / g.salary * 100).toFixed(1) : (g.poolPoints > 0 ? "\u221e" : "0");
     const isBonus = BONUS_PLAYERS.has(Object.keys(FIELD_SALARIES).find(k => normalizeName(k) === normalizeName(g.name)) || "");
-    html += '<tr class="border-t border-board-border hover:bg-board-hover">';
-    html += '<td class="py-2 font-medium text-white">' + g.name + (isBonus ? ' <span class="text-xs text-yellow-500">BONUS</span>' : "") + '</td>';
-    html += '<td class="py-2 text-center">' + g.overallScore + '</td>';
-    html += '<td class="py-2 text-center text-gray-400">' + g.salary + '</td>';
-    html += '<td class="py-2 text-center">' + g.pickCount + ' <span class="text-gray-600">(' + (g.pickCount/ENTRIES.length*100).toFixed(0) + '%)</span></td>';
-    html += '<td class="py-2 text-center font-bold ' + ptsColor + '">' + formatPoints(g.poolPoints) + '</td>';
-    html += '<td class="py-2 text-center text-gray-400">' + value + '</td>';
+    const isExpanded = expandedStatsGolfer === g.normalizedName;
+
+    // Row background
+    const rowBg = !g.isActive ? ' bg-red-900/20' : g.cutRisk ? ' bg-orange-900/15' : '';
+
+    // Ownership heat
+    const heatBg = g.ownershipPct >= 50 ? ' bg-blue-500/30' : g.ownershipPct >= 30 ? ' bg-blue-500/20' : g.ownershipPct >= 10 ? ' bg-blue-500/10' : '';
+
+    html += '<tr class="border-t border-board-border hover:bg-board-hover cursor-pointer' + rowBg + '" onclick="toggleStatsExpand(\'' + g.normalizedName.replace(/'/g, "\\'") + '\')">';
+
+    // Player name + badges
+    html += '<td class="py-2 pr-2"><div class="flex flex-wrap items-center gap-1"><span class="font-medium truncate max-w-[140px] md:max-w-none ' + (!g.isActive ? 'text-red-400' : g.cutRisk ? 'text-orange-400' : 'text-white') + '">' + g.name + '</span>';
+    if (!g.isActive) html += '<span class="text-xs bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
+    else if (g.cutRisk) html += '<span class="text-xs bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
+    if (g.isOnCourse) {
+      html += '<span class="text-xs bg-blue-500/20 text-blue-400 px-1 rounded">Thru ' + g.thru + '</span>';
+    } else if (g.isActive && g.roundComplete) {
+      html += '<span class="text-xs bg-green-500/20 text-green-400 px-1 rounded">F</span>';
+    } else if (g.isActive && g.teeTime) {
+      var tee = new Date(g.teeTime);
+      var timeStr = tee.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      html += '<span class="text-xs bg-gray-500/20 text-gray-400 px-1 rounded">' + timeStr + '</span>';
+    }
+    if (isBonus) html += '<span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
+    html += '</div></td>';
+
+    // Position
+    html += '<td class="py-2 px-1 text-center text-xs font-mono">' + (g.position ? (g.position <= 10 ? '<span class="text-green-400">T' + g.position + '</span>' : '<span class="text-gray-400">T' + g.position + '</span>') : '<span class="text-gray-600">-</span>') + '</td>';
+
+    // Score
+    html += '<td class="py-2 px-1 text-center font-mono">' + (g.overallScore || "-") + '</td>';
+
+    // Salary (hidden mobile)
+    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs hidden md:table-cell">' + g.salary + '</td>';
+
+    // Picked + heat
+    html += '<td class="py-2 px-1 text-center text-xs' + heatBg + '">' + g.pickCount + ' <span class="text-gray-600">(' + g.ownershipPct.toFixed(0) + '%)</span></td>';
+
+    // R1-R4 (hidden mobile)
+    for (var r = 0; r < 4; r++) {
+      var rv = g.rounds[r];
+      var rc = rv > 0 ? "text-green-400" : rv < 0 ? "text-red-400" : "text-gray-600";
+      html += '<td class="py-2 px-1 text-center font-mono text-xs hidden md:table-cell ' + rc + '">' + (rv !== 0 ? formatPoints(rv) : "-") + '</td>';
+    }
+
+    // Finish bonus (hidden mobile)
+    html += '<td class="py-2 px-1 text-center font-mono text-xs text-yellow-400 hidden md:table-cell">' + (g.finishBonus > 0 ? "+" + g.finishBonus : "-") + '</td>';
+
+    // Leader bonus (hidden mobile)
+    html += '<td class="py-2 px-1 text-center font-mono text-xs text-blue-400 hidden md:table-cell">' + (g.roundLeaderBonus > 0 ? "+" + g.roundLeaderBonus : "-") + '</td>';
+
+    // Pool Pts
+    html += '<td class="py-2 text-right font-bold ' + ptsColor + '">' + formatPoints(g.poolPoints) + '</td>';
+
+    // Value (hidden mobile)
+    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs hidden md:table-cell">' + value + '</td>';
+
     html += '</tr>';
+
+    // Expanded owner row
+    if (isExpanded && g.ownerEntries.length > 0) {
+      html += '<tr class="bg-board-bg/50"><td colspan="13" class="px-4 py-3">';
+      html += '<div class="text-xs text-gray-400 mb-2">' + g.ownerEntries.length + ' entries own ' + g.name + '</div>';
+      html += '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1 max-h-48 overflow-y-auto">';
+      for (var oi = 0; oi < g.ownerEntries.length; oi++) {
+        var oe = g.ownerEntries[oi];
+        var oeColor = oe.points > 0 ? "text-green-400" : oe.points < 0 ? "text-red-400" : "text-gray-400";
+        html += '<div class="flex items-center justify-between text-xs py-0.5 px-2 rounded hover:bg-board-hover">';
+        html += '<span class="text-gray-300">#' + oe.rank + ' ' + oe.name + (oe.isBonus ? ' <span class="text-yellow-500">B</span>' : '') + '</span>';
+        html += '<span class="font-mono ' + oeColor + '">' + formatPoints(oe.points) + '</span>';
+        html += '</div>';
+      }
+      html += '</div></td></tr>';
+    } else if (isExpanded) {
+      html += '<tr class="bg-board-bg/50"><td colspan="13" class="px-4 py-3 text-xs text-gray-400">No entries picked ' + g.name + '</td></tr>';
+    }
   }
 
   html += '</tbody></table></div></div>';
@@ -833,7 +1034,7 @@ function renderStats() {
   const byPicks = [...golferStats].sort((a, b) => b.pickCount - a.pickCount).slice(0, 10);
   html += '<div class="bg-board-card border border-board-border rounded-xl p-4"><h3 class="text-augusta-gold font-bold mb-3">Most Picked</h3><div class="space-y-2">';
   for (const g of byPicks) {
-    const pct = (g.pickCount / ENTRIES.length * 100).toFixed(0);
+    var pct = (g.pickCount / ENTRIES.length * 100).toFixed(0);
     html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + '</span><div class="flex items-center gap-2"><div class="w-24 bg-board-bg rounded-full h-2"><div class="bg-masters-green rounded-full h-2" style="width:' + pct + '%"></div></div><span class="text-gray-400 text-xs w-12 text-right">' + g.pickCount + ' (' + pct + '%)</span></div></div>';
   }
   html += '</div></div>';
@@ -842,9 +1043,9 @@ function renderStats() {
   const byValue = golferStats.filter(g => g.salary > 0).sort((a, b) => (b.poolPoints/b.salary) - (a.poolPoints/a.salary)).slice(0, 10);
   html += '<div class="bg-board-card border border-board-border rounded-xl p-4"><h3 class="text-augusta-gold font-bold mb-3">Best Value (Pts/Salary)</h3><div class="space-y-2">';
   for (const g of byValue) {
-    const val = (g.poolPoints / g.salary * 100).toFixed(0);
-    const ptsColor = g.poolPoints > 0 ? "text-green-400" : "text-red-400";
-    html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + ' <span class="text-gray-400">($' + g.salary + ')</span></span><span class="' + ptsColor + ' font-mono">' + formatPoints(g.poolPoints) + ' pts</span></div>';
+    var val = (g.poolPoints / g.salary * 100).toFixed(0);
+    var ptsc = g.poolPoints > 0 ? "text-green-400" : "text-red-400";
+    html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + ' <span class="text-gray-400">($' + g.salary + ')</span></span><span class="' + ptsc + ' font-mono">' + formatPoints(g.poolPoints) + ' pts</span></div>';
   }
   html += '</div></div>';
 
