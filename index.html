@@ -19,8 +19,10 @@ tailwind.config = {
 }
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap');
 body { font-family: 'Inter', sans-serif; }
+h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
+.font-mono, [class*="font-mono"], td, .tabular-nums { font-variant-numeric: tabular-nums; }
 .fade-in { animation: fadeIn 0.3s ease-in; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .pulse-dot { animation: pulse 2s infinite; }
@@ -668,17 +670,17 @@ function renderRow(entry) {
 
   const bgClass = isFav ? "bg-augusta-gold/10 border border-augusta-gold/30" : "bg-board-card hover:bg-board-hover border border-board-border";
   const payout = entry.payout || 0;
-  const payoutBadge = payout > 0 ? ' <span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">$' + payout.toLocaleString() + '</span>' : '';
+  const payoutBadge = payout > 0 ? ' <span class="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">$' + payout.toLocaleString() + '</span>' : '';
 
   // Rank movement indicator
   const rc = entry.rankChange || 0;
   let moveHtml = '';
   let moverClass = '';
   if (rc > 0) {
-    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-[10px] font-bold text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>' + rc + '</span>';
+    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-xs font-bold text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>' + rc + '</span>';
     moverClass = ' mover-up';
   } else if (rc < 0) {
-    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-[10px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>' + Math.abs(rc) + '</span>';
+    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-xs font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>' + Math.abs(rc) + '</span>';
     moverClass = ' mover-down';
   }
 
@@ -912,9 +914,9 @@ function renderDetailCard(entry, isModal = false) {
     const rowBg = !p.isActive ? ' bg-red-900/20' : cutRisk ? ' bg-orange-900/15' : '';
     html += '<tr class="border-t border-board-border/50' + rowBg + '">';
     html += '<td class="py-2 pr-2"><span class="font-medium ' + (!p.isActive ? 'text-red-400' : cutRisk ? 'text-orange-400' : 'text-white') + '">' + p.displayName + '</span>';
-    if (!p.isActive) html += ' <span class="text-[10px] bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
-    else if (cutRisk) html += ' <span class="text-[10px] bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
-    if (p.isBonus) html += ' <span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
+    if (!p.isActive) html += ' <span class="text-xs bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
+    else if (cutRisk) html += ' <span class="text-xs bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
+    if (p.isBonus) html += ' <span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
     html += '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-400 text-xs">' + p.salary + '</td>';
@@ -1571,7 +1573,7 @@ function buildProbRow(r) {
   winVal.textContent = r.winPct.toFixed(1) + "%" + deltaHTML;
   winDiv.appendChild(winVal);
   const winLbl = document.createElement("div");
-  winLbl.className = "text-[10px] text-gray-600";
+  winLbl.className = "text-xs text-gray-600";
   winLbl.textContent = "Win";
   winDiv.appendChild(winLbl);
   probs.appendChild(winDiv);
@@ -1582,7 +1584,7 @@ function buildProbRow(r) {
   t5Val.textContent = r.top5Pct.toFixed(0) + "%";
   t5Div.appendChild(t5Val);
   const t5Lbl = document.createElement("div");
-  t5Lbl.className = "text-[10px] text-gray-600";
+  t5Lbl.className = "text-xs text-gray-600";
   t5Lbl.textContent = "Top 5";
   t5Div.appendChild(t5Lbl);
   probs.appendChild(t5Div);
@@ -1593,7 +1595,7 @@ function buildProbRow(r) {
   mVal.textContent = r.inMoneyPct.toFixed(0) + "%";
   mDiv.appendChild(mVal);
   const mLbl = document.createElement("div");
-  mLbl.className = "text-[10px] text-gray-600";
+  mLbl.className = "text-xs text-gray-600";
   mLbl.textContent = "Money";
   mDiv.appendChild(mLbl);
   probs.appendChild(mDiv);
@@ -1607,7 +1609,7 @@ function buildProbRow(r) {
   payVal.textContent = "$" + r.expectedPayout;
   payDiv.appendChild(payVal);
   const payLbl = document.createElement("div");
-  payLbl.className = "text-[10px] text-gray-600";
+  payLbl.className = "text-xs text-gray-600";
   payLbl.textContent = "E[Pay]";
   payDiv.appendChild(payLbl);
   row.appendChild(payDiv);
@@ -1690,7 +1692,7 @@ function buildSwingOMeter(leverage) {
     nm.textContent = g.displayName;
     nameCol.appendChild(nm);
     const detail = document.createElement("div");
-    detail.className = "text-gray-400 text-[10px]";
+    detail.className = "text-gray-400 text-xs";
     detail.textContent = g.isOnCourse ? "Thru " + g.thru + " (" + (g.roundScore >= 0 ? "+" : "") + g.roundScore + ")" : g.ownerCount + " teams";
     nameCol.appendChild(detail);
     row.appendChild(nameCol);
@@ -1713,7 +1715,7 @@ function buildSwingOMeter(leverage) {
     valNum.textContent = "\u00B1" + g.maxSwing.toFixed(1) + "%";
     valCol.appendChild(valNum);
     const valName = document.createElement("div");
-    valName.className = "text-gray-600 text-[10px] truncate";
+    valName.className = "text-gray-600 text-xs truncate";
     valName.textContent = g.swingEntry;
     valCol.appendChild(valName);
     row.appendChild(valCol);
@@ -1760,7 +1762,7 @@ function buildDifferentialsSection() {
 
     if (d.diffs.length > 0) {
       const diffLabel = document.createElement("div");
-      diffLabel.className = "text-[10px] text-green-500 font-semibold mb-1";
+      diffLabel.className = "text-xs text-green-500 font-semibold mb-1";
       diffLabel.textContent = "UNIQUE PICKS (differential)";
       card.appendChild(diffLabel);
       const diffWrap = document.createElement("div");
@@ -1776,7 +1778,7 @@ function buildDifferentialsSection() {
 
     if (d.shared.length > 0) {
       const sharedLabel = document.createElement("div");
-      sharedLabel.className = "text-[10px] text-gray-400 font-semibold mb-1";
+      sharedLabel.className = "text-xs text-gray-400 font-semibold mb-1";
       sharedLabel.textContent = "SHARED WITH OTHER TOP 10 (" + d.shared.length + ")";
       card.appendChild(sharedLabel);
       const sharedWrap = document.createElement("div");
