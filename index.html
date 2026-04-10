@@ -186,6 +186,8 @@ const POLL_INTERVAL = 30000;
 function normalizeName(name) {
   if (!name) return "";
   let n = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  // Handle characters that don't decompose via NFD (e.g. ø in Højgaard)
+  n = n.replace(/ø/g, "o").replace(/æ/g, "ae").replace(/ð/g, "d").replace(/ł/g, "l").replace(/đ/g, "d");
   return NAME_ALIASES[n] || n;
 }
 
