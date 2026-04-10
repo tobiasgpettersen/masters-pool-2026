@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0.3] - 2026-04-10
+
+### Added
+- GoatCounter analytics for anonymous, cookie-free page view tracking
+
 ## [0.1.0.2] - 2026-04-10
 
 ### Changed
