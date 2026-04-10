@@ -826,7 +826,7 @@ function renderRow(entry) {
   html += '<div class="md:hidden p-3 flex items-center justify-between cursor-pointer" onclick="toggleEntryExpand(' + entry.entryIdx + ')" tabindex="0" role="button" aria-expanded="' + isExpanded + '" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleEntryExpand(' + entry.entryIdx + ')}">';
   html += '<div class="flex items-center gap-2">';
   html += starSvg;
-  html += '<span class="text-lg font-bold ' + rankClass + ' w-8">' + rankDisplay + '</span>';
+  html += '<span class="text-lg font-bold ' + rankClass + ' w-12 shrink-0">' + rankDisplay + '</span>';
   html += '<div>';
   html += '<div class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + payoutBadge + moveHtml + '</div>';
   html += '<div class="text-xs text-gray-400">Tiebreaker: ' + entry.winningScore + '</div>';
