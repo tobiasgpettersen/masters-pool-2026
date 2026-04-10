@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,8 +19,10 @@ tailwind.config = {
 }
 </script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap');
 body { font-family: 'Inter', sans-serif; }
+h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
+.font-mono, [class*="font-mono"], td, .tabular-nums { font-variant-numeric: tabular-nums; }
 .fade-in { animation: fadeIn 0.3s ease-in; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .pulse-dot { animation: pulse 2s infinite; }
@@ -42,6 +44,8 @@ body { font-family: 'Inter', sans-serif; }
 .rank-gold { background: linear-gradient(135deg, #c8a951 0%, #f0d878 50%, #c8a951 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-silver { background: linear-gradient(135deg, #9ca3af 0%, #d1d5db 50%, #9ca3af 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-bronze { background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #b45309 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+:focus-visible { outline: 2px solid #c8a951; outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 </style>
 </head>
 <body class="bg-board-bg text-gray-200 min-h-screen">
@@ -51,7 +55,7 @@ body { font-family: 'Inter', sans-serif; }
   <div class="max-w-7xl mx-auto px-4 py-3">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="text-2xl md:text-3xl font-black text-white tracking-tight">THE MASTERS</div>
+        <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">THE MASTERS</h1>
         <div class="text-augusta-gold text-sm md:text-base font-semibold">2026 POOL</div>
       </div>
       <div class="flex items-center gap-2 text-xs md:text-sm">
@@ -79,23 +83,24 @@ body { font-family: 'Inter', sans-serif; }
 </div>
 
 <!-- Tab Navigation -->
-<div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40">
-  <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto scrollbar-hide">
-    <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
-    <button onclick="switchTab('stats')" id="tab-stats" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
-    <button onclick="switchTab('my-team')" id="tab-my-team" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
-    <button onclick="switchTab('payouts')" id="tab-payouts" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
-    <button onclick="switchTab('projections')" id="tab-projections" class="tab-btn whitespace-nowrap px-4 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent hover:text-gray-300">Projections</button>
+<div class="bg-board-card border-b border-board-border sticky top-[88px] md:top-[96px] z-40 relative">
+  <div class="md:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-board-card to-transparent pointer-events-none z-10"></div>
+  <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Pool views">
+    <button onclick="switchTab('leaderboard')" id="tab-leaderboard" role="tab" aria-selected="true" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-augusta-gold border-b-2 border-augusta-gold">Leaderboard</button>
+    <button onclick="switchTab('stats')" id="tab-stats" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Player Stats</button>
+    <button onclick="switchTab('my-team')" id="tab-my-team" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Find Me</button>
+    <button onclick="switchTab('payouts')" id="tab-payouts" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Payouts</button>
+    <button onclick="switchTab('projections')" id="tab-projections" role="tab" aria-selected="false" class="tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-300">Projections</button>
   </div>
 </div>
 
 <!-- Main Content -->
 <main class="max-w-7xl mx-auto px-2 md:px-4 py-4">
-  <div id="leaderboard-tab"></div>
-  <div id="stats-tab" class="hidden"></div>
-  <div id="my-team-tab" class="hidden"></div>
-  <div id="payouts-tab" class="hidden"></div>
-  <div id="projections-tab" class="hidden"></div>
+  <div id="leaderboard-tab" role="tabpanel" aria-label="Leaderboard"></div>
+  <div id="stats-tab" class="hidden" role="tabpanel" aria-label="Player Stats"></div>
+  <div id="my-team-tab" class="hidden" role="tabpanel" aria-label="Find Me"></div>
+  <div id="payouts-tab" class="hidden" role="tabpanel" aria-label="Payouts"></div>
+  <div id="projections-tab" class="hidden" role="tabpanel" aria-label="Projections"></div>
 </main>
 
 <!-- Detail Modal -->
@@ -586,8 +591,10 @@ let selectedParticipant = null;
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll(".tab-btn").forEach(b => {
-    b.className = "tab-btn px-4 py-2 text-sm font-semibold " +
-      (b.id === "tab-" + tab ? "text-augusta-gold border-b-2 border-augusta-gold" : "text-gray-500 border-b-2 border-transparent hover:text-gray-300");
+    const isActive = b.id === "tab-" + tab;
+    b.className = "tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold " +
+      (isActive ? "text-augusta-gold border-b-2 border-augusta-gold" : "text-gray-400 border-b-2 border-transparent hover:text-gray-300");
+    b.setAttribute("aria-selected", isActive ? "true" : "false");
   });
   document.querySelectorAll("[id$=\'-tab\']").forEach(d => d.className = d.id === tab + "-tab" ? "" : "hidden");
   renderCurrentTab();
@@ -616,7 +623,7 @@ function renderLeaderboard() {
   let html = '<div class="space-y-1">';
 
   // Table header
-  html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-xs text-gray-500 font-semibold uppercase tracking-wider">';
+  html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-2 text-xs text-gray-400 font-semibold uppercase tracking-wider">';
   html += '<div class="col-span-1">Rank</div>';
   html += '<div class="col-span-3">Participant</div>';
   html += '<div class="col-span-1 text-center">R1</div>';
@@ -665,21 +672,21 @@ function renderRow(entry) {
 
   const bgClass = isFav ? "bg-augusta-gold/10 border border-augusta-gold/30" : "bg-board-card hover:bg-board-hover border border-board-border";
   const payout = entry.payout || 0;
-  const payoutBadge = payout > 0 ? ' <span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">$' + payout.toLocaleString() + '</span>' : '';
+  const payoutBadge = payout > 0 ? ' <span class="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">$' + payout.toLocaleString() + '</span>' : '';
 
   // Rank movement indicator
   const rc = entry.rankChange || 0;
   let moveHtml = '';
   let moverClass = '';
   if (rc > 0) {
-    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-[10px] font-bold text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>' + rc + '</span>';
+    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-xs font-bold text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg>' + rc + '</span>';
     moverClass = ' mover-up';
   } else if (rc < 0) {
-    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-[10px] font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>' + Math.abs(rc) + '</span>';
+    moveHtml = '<span class="bounce-in inline-flex items-center gap-0.5 text-xs font-bold text-red-400 bg-red-500/15 px-1.5 py-0.5 rounded-full ml-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>' + Math.abs(rc) + '</span>';
     moverClass = ' mover-down';
   }
 
-  let html = '<div class="cursor-pointer rounded-lg ' + bgClass + moverClass + ' transition-all duration-150">';
+  let html = '<div class="cursor-pointer rounded-lg ' + bgClass + moverClass + ' transition-all duration-150" tabindex="0" role="button" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showDetail(' + entry.entryIdx + ')}">';
 
   // Mobile layout
   html += '<div class="md:hidden p-3 flex items-center justify-between">';
@@ -688,19 +695,19 @@ function renderRow(entry) {
   html += '<span class="text-lg font-bold ' + rankClass + ' w-8">' + entry.rank + '</span>';
   html += '<div onclick="showDetail(' + entry.entryIdx + ')">';
   html += '<div class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + payoutBadge + moveHtml + '</div>';
-  html += '<div class="text-xs text-gray-500">Tiebreaker: ' + entry.winningScore + '</div>';
+  html += '<div class="text-xs text-gray-400">Tiebreaker: ' + entry.winningScore + '</div>';
   html += '</div></div>';
   html += '<div class="text-right" onclick="showDetail(' + entry.entryIdx + ')">';
   html += '<div class="text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</div>';
-  html += '<div class="text-xs text-gray-500">pts</div>';
+  html += '<div class="text-xs text-gray-400">pts</div>';
   html += '</div></div>';
 
   // Desktop layout
   html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-3 items-center" onclick="showDetail(' + entry.entryIdx + ')">';
   html += '<div class="col-span-1 flex items-center gap-1">' + starSvg + '<span class="text-lg font-bold ' + rankClass + '">' + entry.rank + '</span></div>';
-  html += '<div class="col-span-3"><span class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + '</span>' + payoutBadge + moveHtml + '<span class="text-xs text-gray-500 ml-2">TB: ' + entry.winningScore + '</span></div>';
+  html += '<div class="col-span-3"><span class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + '</span>' + payoutBadge + moveHtml + '<span class="text-xs text-gray-400 ml-2">TB: ' + entry.winningScore + '</span></div>';
   for (let r = 0; r < 4; r++) {
-    const rc = roundTotals[r] > 0 ? "text-green-400" : roundTotals[r] < 0 ? "text-red-400" : "text-gray-500";
+    const rc = roundTotals[r] > 0 ? "text-green-400" : roundTotals[r] < 0 ? "text-red-400" : "text-gray-400";
     html += '<div class="col-span-1 text-center text-sm font-mono ' + rc + '">' + formatPoints(roundTotals[r]) + '</div>';
   }
   html += '<div class="col-span-1 text-center text-sm font-mono text-yellow-400">' + (finishBonusTotal > 0 ? "+" + finishBonusTotal : "-") + '</div>';
@@ -713,7 +720,7 @@ function renderRow(entry) {
 
 function renderStats() {
   const container = document.getElementById("stats-tab");
-  if (!lastData) { container.innerHTML = '<div class="text-center text-gray-500 py-8">Loading...</div>'; return; }
+  if (!lastData) { container.innerHTML = '<div class="text-center text-gray-400 py-8">Loading...</div>'; return; }
 
   // Calculate golfer stats
   const golferStats = [];
@@ -751,7 +758,7 @@ function renderStats() {
 
   // Top performers card
   html += '<div class="bg-board-card border border-board-border rounded-xl p-4 col-span-full"><h3 class="text-augusta-gold font-bold text-lg mb-3">Player Performance</h3>';
-  html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase">';
+  html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-400 text-xs uppercase">';
   html += '<th class="text-left pb-2">Player</th><th class="text-center pb-2">Score</th><th class="text-center pb-2">Salary</th><th class="text-center pb-2">Picked</th><th class="text-center pb-2">Pool Pts</th><th class="text-center pb-2">Value</th></tr></thead><tbody>';
 
   for (const g of golferStats) {
@@ -785,7 +792,7 @@ function renderStats() {
   for (const g of byValue) {
     const val = (g.poolPoints / g.salary * 100).toFixed(0);
     const ptsColor = g.poolPoints > 0 ? "text-green-400" : "text-red-400";
-    html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + ' <span class="text-gray-500">($' + g.salary + ')</span></span><span class="' + ptsColor + ' font-mono">' + formatPoints(g.poolPoints) + ' pts</span></div>';
+    html += '<div class="flex items-center justify-between text-sm"><span class="text-white">' + g.name + ' <span class="text-gray-400">($' + g.salary + ')</span></span><span class="' + ptsColor + ' font-mono">' + formatPoints(g.poolPoints) + ' pts</span></div>';
   }
   html += '</div></div>';
 
@@ -796,17 +803,18 @@ function renderStats() {
 function renderFindMe() {
   const container = document.getElementById("my-team-tab");
   let html = '<div class="bg-board-card border border-board-border rounded-xl p-4">';
-  html += '<h3 class="text-augusta-gold font-bold text-lg mb-3">Find Your Team</h3>';
-  html += '<input type="text" id="findMeInput" placeholder="Type your name..." oninput="filterFindMe(this.value)" class="w-full bg-board-bg border border-board-border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-augusta-gold mb-4">';
-  html += '<div id="findMeResults"></div></div>';
+  html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">Find Your Team</h3>';
+  html += '<p class="text-gray-400 text-sm mb-3">Search by name to see your picks, scores, and current standing.</p>';
+  html += '<input type="text" id="findMeInput" placeholder="Type your name..." oninput="filterFindMe(this.value)" class="w-full bg-board-bg border border-board-border rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-augusta-gold mb-4" aria-label="Search for your name">';
+  html += '<div id="findMeResults"><div class="text-center py-6"><svg class="w-10 h-10 mx-auto text-gray-600 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg><p class="text-gray-400 text-sm">Search from 501 participants</p></div></div></div>';
   container.innerHTML = html;
 }
 
 function filterFindMe(q) {
   const results = document.getElementById("findMeResults");
-  if (!q || q.length < 2) { results.innerHTML = '<div class="text-gray-500 text-sm">Type at least 2 characters...</div>'; return; }
+  if (!q || q.length < 2) { results.innerHTML = '<div class="text-gray-400 text-sm">Type at least 2 characters...</div>'; return; }
   const matches = allScored.filter(e => e.name.toLowerCase().includes(q.toLowerCase()));
-  if (matches.length === 0) { results.innerHTML = '<div class="text-gray-500 text-sm">No matches found</div>'; return; }
+  if (matches.length === 0) { results.innerHTML = '<div class="text-gray-400 text-sm">No matches found</div>'; return; }
 
   let html = '<div class="space-y-3">';
   for (const entry of matches) {
@@ -825,7 +833,7 @@ function renderPayouts() {
   // Payout structure card
   html += '<div class="bg-board-card border border-board-border rounded-xl p-5">';
   html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">Payout Structure</h3>';
-  html += '<p class="text-gray-500 text-xs mb-4">501 entries &times; $10 = $5,010 pool &bull; $' + totalPrize.toLocaleString() + ' paid out</p>';
+  html += '<p class="text-gray-400 text-xs mb-4">501 entries &times; $10 = $5,010 pool &bull; $' + totalPrize.toLocaleString() + ' paid out</p>';
   html += '<div class="space-y-1">';
   for (const p of PAYOUTS) {
     const label = p.min === p.max ? (p.min === 1 ? '1st' : p.min === 2 ? '2nd' : p.min === 3 ? '3rd' : p.min + 'th') : p.min + (p.min === 1 ? 'st' : p.min === 2 ? 'nd' : p.min === 3 ? 'rd' : 'th') + ' - ' + p.max + (p.max === 2 ? 'nd' : p.max === 3 ? 'rd' : 'th');
@@ -841,7 +849,7 @@ function renderPayouts() {
   // Who's in the money card
   html += '<div class="bg-board-card border border-board-border rounded-xl p-5">';
   html += '<h3 class="text-augusta-gold font-bold text-lg mb-1">In the Money</h3>';
-  html += '<p class="text-gray-500 text-xs mb-4">Top 41 participants win prizes</p>';
+  html += '<p class="text-gray-400 text-xs mb-4">Top 41 participants win prizes</p>';
   html += '<div class="space-y-0.5">';
 
   const inMoney = allScored.filter(e => (e.payout || 0) > 0);
@@ -853,7 +861,7 @@ function renderPayouts() {
 
     html += '<div onclick="showDetail(' + entry.entryIdx + ')" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
     html += '<div class="flex items-center gap-2">';
-    html += '<span class="text-sm font-bold text-gray-500 w-6">' + entry.rank + '</span>';
+    html += '<span class="text-sm font-bold text-gray-400 w-6">' + entry.rank + '</span>';
     html += '<span class="text-sm ' + (isFav ? 'text-augusta-gold font-semibold' : 'text-white') + '">' + entry.name + '</span>';
     html += '</div>';
     html += '<div class="flex items-center gap-4">';
@@ -892,28 +900,28 @@ function renderDetailCard(entry, isModal = false) {
   html += '<div class="flex items-center justify-between mb-4">';
   html += '<div><div class="text-lg font-bold text-white">' + entry.name + '</div>';
   html += '<div class="text-sm text-gray-400">Rank #' + entry.rank + ' of ' + allScored.length + ' \u2022 Tiebreaker: ' + entry.winningScore + '</div></div>';
-  html += '<div class="text-3xl font-black ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '<span class="text-sm font-normal text-gray-500"> pts</span></div>';
+  html += '<div class="text-3xl font-black ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '<span class="text-sm font-normal text-gray-400"> pts</span></div>';
   html += '</div>';
 
   // Players table
-  html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-500 text-xs uppercase border-b border-board-border">';
+  html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-400 text-xs uppercase border-b border-board-border">';
   html += '<th class="text-left pb-2 pr-2">Player</th><th class="text-center pb-2 px-1">Pos</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
 
   let totalSalary = 0;
   for (const p of entry.players) {
-    const ptsColor = p.total > 0 ? "text-green-400" : p.total < 0 ? "text-red-400" : "text-gray-500";
+    const ptsColor = p.total > 0 ? "text-green-400" : p.total < 0 ? "text-red-400" : "text-gray-400";
     if (!p.isBonus) totalSalary += p.salary;
 
     const cutRisk = p.isActive && lastData && lastData.currentRound <= 2 && p.position && p.position > 50;
     const rowBg = !p.isActive ? ' bg-red-900/20' : cutRisk ? ' bg-orange-900/15' : '';
     html += '<tr class="border-t border-board-border/50' + rowBg + '">';
     html += '<td class="py-2 pr-2"><span class="font-medium ' + (!p.isActive ? 'text-red-400' : cutRisk ? 'text-orange-400' : 'text-white') + '">' + p.displayName + '</span>';
-    if (!p.isActive) html += ' <span class="text-[10px] bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
-    else if (cutRisk) html += ' <span class="text-[10px] bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
-    if (p.isBonus) html += ' <span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
+    if (!p.isActive) html += ' <span class="text-xs bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
+    else if (cutRisk) html += ' <span class="text-xs bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
+    if (p.isBonus) html += ' <span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
     html += '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
-    html += '<td class="py-2 px-1 text-center text-gray-500 text-xs">' + p.salary + '</td>';
+    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs">' + p.salary + '</td>';
     html += '<td class="py-2 px-1 text-center font-mono">' + (p.overallScore || "-") + '</td>';
     for (let r = 0; r < 4; r++) {
       const rc = p.rounds[r] > 0 ? "text-green-400" : p.rounds[r] < 0 ? "text-red-400" : "text-gray-600";
@@ -928,7 +936,7 @@ function renderDetailCard(entry, isModal = false) {
   html += '</tbody></table></div>';
 
   // Salary cap
-  html += '<div class="mt-3 flex items-center justify-between text-xs text-gray-500 border-t border-board-border pt-2">';
+  html += '<div class="mt-3 flex items-center justify-between text-xs text-gray-400 border-t border-board-border pt-2">';
   html += '<span>Salary used: ' + totalSalary + '/500</span>';
   html += '<span>5 players on team</span>';
   html += '</div></div>';
@@ -1405,7 +1413,7 @@ function renderProjections() {
   const container = document.getElementById("projections-tab");
   if (!lastData || !allScored || allScored.length === 0) {
     container.textContent = "Waiting for tournament data...";
-    container.className = "text-center text-gray-500 py-12";
+    container.className = "text-center text-gray-400 py-12";
     return;
   }
   container.className = "";
@@ -1418,7 +1426,7 @@ function renderProjections() {
     title.className = "text-augusta-gold text-lg font-semibold mb-2";
     title.textContent = "Computing projections...";
     const sub = document.createElement("div");
-    sub.className = "text-gray-500 text-sm";
+    sub.className = "text-gray-400 text-sm";
     sub.textContent = "Results will appear shortly";
     wrapper.appendChild(title);
     wrapper.appendChild(sub);
@@ -1474,7 +1482,7 @@ function renderProjectionsContent() {
   h2.textContent = "Win Probability";
   header.appendChild(h2);
   const subtext = document.createElement("div");
-  subtext.className = "text-xs text-gray-500 mb-3";
+  subtext.className = "text-xs text-gray-400 mb-3";
   subtext.textContent = "Based on 3,000 Monte Carlo simulations";
   header.appendChild(subtext);
 
@@ -1496,7 +1504,7 @@ function renderProjectionsContent() {
   }
   if (!searchQuery && filtered.length > 50) {
     const more = document.createElement("div");
-    more.className = "text-center text-gray-500 text-xs py-2";
+    more.className = "text-center text-gray-400 text-xs py-2";
     more.textContent = "Showing top 50. Search to find others.";
     header.appendChild(more);
   }
@@ -1567,7 +1575,7 @@ function buildProbRow(r) {
   winVal.textContent = r.winPct.toFixed(1) + "%" + deltaHTML;
   winDiv.appendChild(winVal);
   const winLbl = document.createElement("div");
-  winLbl.className = "text-[10px] text-gray-600";
+  winLbl.className = "text-xs text-gray-600";
   winLbl.textContent = "Win";
   winDiv.appendChild(winLbl);
   probs.appendChild(winDiv);
@@ -1578,7 +1586,7 @@ function buildProbRow(r) {
   t5Val.textContent = r.top5Pct.toFixed(0) + "%";
   t5Div.appendChild(t5Val);
   const t5Lbl = document.createElement("div");
-  t5Lbl.className = "text-[10px] text-gray-600";
+  t5Lbl.className = "text-xs text-gray-600";
   t5Lbl.textContent = "Top 5";
   t5Div.appendChild(t5Lbl);
   probs.appendChild(t5Div);
@@ -1589,7 +1597,7 @@ function buildProbRow(r) {
   mVal.textContent = r.inMoneyPct.toFixed(0) + "%";
   mDiv.appendChild(mVal);
   const mLbl = document.createElement("div");
-  mLbl.className = "text-[10px] text-gray-600";
+  mLbl.className = "text-xs text-gray-600";
   mLbl.textContent = "Money";
   mDiv.appendChild(mLbl);
   probs.appendChild(mDiv);
@@ -1603,7 +1611,7 @@ function buildProbRow(r) {
   payVal.textContent = "$" + r.expectedPayout;
   payDiv.appendChild(payVal);
   const payLbl = document.createElement("div");
-  payLbl.className = "text-[10px] text-gray-600";
+  payLbl.className = "text-xs text-gray-600";
   payLbl.textContent = "E[Pay]";
   payDiv.appendChild(payLbl);
   row.appendChild(payDiv);
@@ -1647,7 +1655,7 @@ function buildSwingOMeter(leverage) {
   h2.textContent = title;
   wrap.appendChild(h2);
   const sub = document.createElement("div");
-  sub.className = "text-xs text-gray-500 mb-3";
+  sub.className = "text-xs text-gray-400 mb-3";
   sub.textContent = subtitle;
   wrap.appendChild(sub);
 
@@ -1686,7 +1694,7 @@ function buildSwingOMeter(leverage) {
     nm.textContent = g.displayName;
     nameCol.appendChild(nm);
     const detail = document.createElement("div");
-    detail.className = "text-gray-500 text-[10px]";
+    detail.className = "text-gray-400 text-xs";
     detail.textContent = g.isOnCourse ? "Thru " + g.thru + " (" + (g.roundScore >= 0 ? "+" : "") + g.roundScore + ")" : g.ownerCount + " teams";
     nameCol.appendChild(detail);
     row.appendChild(nameCol);
@@ -1709,7 +1717,7 @@ function buildSwingOMeter(leverage) {
     valNum.textContent = "\u00B1" + g.maxSwing.toFixed(1) + "%";
     valCol.appendChild(valNum);
     const valName = document.createElement("div");
-    valName.className = "text-gray-600 text-[10px] truncate";
+    valName.className = "text-gray-600 text-xs truncate";
     valName.textContent = g.swingEntry;
     valCol.appendChild(valName);
     row.appendChild(valCol);
@@ -1731,7 +1739,7 @@ function buildDifferentialsSection() {
   h2.textContent = "Who to Root For";
   wrap.appendChild(h2);
   const sub = document.createElement("div");
-  sub.className = "text-xs text-gray-500 mb-3";
+  sub.className = "text-xs text-gray-400 mb-3";
   sub.textContent = "Unique golfers that separate the top contenders";
   wrap.appendChild(sub);
 
@@ -1756,7 +1764,7 @@ function buildDifferentialsSection() {
 
     if (d.diffs.length > 0) {
       const diffLabel = document.createElement("div");
-      diffLabel.className = "text-[10px] text-green-500 font-semibold mb-1";
+      diffLabel.className = "text-xs text-green-500 font-semibold mb-1";
       diffLabel.textContent = "UNIQUE PICKS (differential)";
       card.appendChild(diffLabel);
       const diffWrap = document.createElement("div");
@@ -1772,7 +1780,7 @@ function buildDifferentialsSection() {
 
     if (d.shared.length > 0) {
       const sharedLabel = document.createElement("div");
-      sharedLabel.className = "text-[10px] text-gray-500 font-semibold mb-1";
+      sharedLabel.className = "text-xs text-gray-400 font-semibold mb-1";
       sharedLabel.textContent = "SHARED WITH OTHER TOP 10 (" + d.shared.length + ")";
       card.appendChild(sharedLabel);
       const sharedWrap = document.createElement("div");
