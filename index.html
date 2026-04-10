@@ -202,7 +202,8 @@ function parseESPNData(apiData) {
   const eventStatus = event.status?.type?.description || "Unknown";
   const competitors = event.competitions[0].competitors;
 
-  // Find worst score per completed round (for WD/DQ/MC rule)
+  // Find worst score per round (for WD/DQ/MC rule)
+  // Tracks live: uses actual score for completed rounds, 72 + overPar for in-progress
   const worstScorePerRound = [0, 0, 0, 0];
 
   for (const c of competitors) {
@@ -246,6 +247,12 @@ function parseESPNData(apiData) {
 
         if (complete && rd.value > worstScorePerRound[i]) {
           worstScorePerRound[i] = rd.value;
+        } else if (!complete && holesCompleted > 0) {
+          // Live tracking: use 72 + strokes over par as current worst estimate
+          const liveScore = 72 - relToPar; // relToPar positive = under par, so 72 - (+2) = 70; 72 - (-5) = 77
+          if (liveScore > worstScorePerRound[i]) {
+            worstScorePerRound[i] = liveScore;
+          }
         }
       }
     }
@@ -369,9 +376,9 @@ function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores,
       let pts = rd.relToPar * multipliers[i];
       if (isBonus && pts < 0) pts = 0;
       roundPoints[i] = pts;
-    } else if (i + 1 <= currentRound && playerMaxRound > 0 && playerMaxRound < i + 1 && worstScores[i] > 0 && !golferData.isActive) {
+    } else if (i + 1 <= currentRound && playerMaxRound > 0 && playerMaxRound < i + 1 && worstScores[i] >= 72 && !golferData.isActive) {
       // Player did NOT compete and is inactive (WD/DQ/Missed cut)
-      // Assign worst score of the day as penalty
+      // Assign worst score of the day as penalty (live: updates as scores come in)
       let pts = (72 - worstScores[i]) * multipliers[i]; // worst score = most over par = big negative
       if (isBonus && pts < 0) pts = 0; // bonus player floor still applies
       roundPoints[i] = pts;
