@@ -502,10 +502,13 @@ function calculateAllScores(parsedData) {
     }
   }
 
-  // Sort by total points descending, then by tiebreaker (closest to leader's score)
+  // Sort by total points descending, then by tiebreaker (closest to leader's final score)
+  // Tiebreaker only applies when the tournament is complete — mid-tournament the leader's
+  // total strokes are incomplete and not comparable to 4-round winning score predictions
+  const useTiebreaker = parsedData.tournamentComplete && leaderTotalStrokes !== null;
   scored.sort((a, b) => {
     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-    if (leaderTotalStrokes !== null) {
+    if (useTiebreaker) {
       const aDiff = Math.abs(a.winningScore - leaderTotalStrokes);
       const bDiff = Math.abs(b.winningScore - leaderTotalStrokes);
       return aDiff - bDiff;
@@ -520,13 +523,21 @@ function calculateAllScores(parsedData) {
       const prev = scored[i-1];
       const curr = scored[i];
       const samePoints = curr.totalPoints === prev.totalPoints;
-      const sameTB = curr.winningScore === prev.winningScore;
+      // During the tournament, equal points = tied. After tournament, tiebreaker differentiates.
+      // Compare distance to leader (not raw winningScore) so equidistant predictions share rank
+      const sameTB = useTiebreaker
+        ? Math.abs(curr.winningScore - leaderTotalStrokes) === Math.abs(prev.winningScore - leaderTotalStrokes)
+        : true;
       if (!samePoints || !sameTB) {
         rank = i + 1;
       }
     }
     scored[i].rank = rank;
   }
+  // Mark tied entries (more than one entry sharing the same rank)
+  const rankCounts = {};
+  for (const s of scored) rankCounts[s.rank] = (rankCounts[s.rank] || 0) + 1;
+  for (const s of scored) s.tied = rankCounts[s.rank] > 1;
 
   assignTiedPayouts(scored);
 
@@ -772,6 +783,7 @@ function renderLeaderboard() {
 
 function renderRow(entry) {
   const rankClass = entry.rank === 1 ? "rank-gold" : entry.rank === 2 ? "rank-silver" : entry.rank === 3 ? "rank-bronze" : "text-gray-400";
+  const rankDisplay = (entry.tied ? 'T' : '') + entry.rank;
   const isFav = favorites.has(entry.name);
 
   const roundTotals = [0,0,0,0];
@@ -813,7 +825,7 @@ function renderRow(entry) {
   html += '<div class="md:hidden p-3 flex items-center justify-between cursor-pointer" onclick="toggleEntryExpand(' + entry.entryIdx + ')" tabindex="0" role="button" aria-expanded="' + isExpanded + '" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleEntryExpand(' + entry.entryIdx + ')}">';
   html += '<div class="flex items-center gap-2">';
   html += starSvg;
-  html += '<span class="text-lg font-bold ' + rankClass + ' w-8">' + entry.rank + '</span>';
+  html += '<span class="text-lg font-bold ' + rankClass + ' w-8">' + rankDisplay + '</span>';
   html += '<div>';
   html += '<div class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + payoutBadge + moveHtml + '</div>';
   html += '<div class="text-xs text-gray-400">Tiebreaker: ' + entry.winningScore + '</div>';
@@ -828,7 +840,7 @@ function renderRow(entry) {
 
   // Desktop layout
   html += '<div class="hidden md:grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer" onclick="toggleEntryExpand(' + entry.entryIdx + ')" tabindex="0" role="button" aria-expanded="' + isExpanded + '" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleEntryExpand(' + entry.entryIdx + ')}">';
-  html += '<div class="col-span-1 flex items-center gap-1">' + starSvg + '<span class="text-lg font-bold ' + rankClass + '">' + entry.rank + '</span></div>';
+  html += '<div class="col-span-1 flex items-center gap-1">' + starSvg + '<span class="text-lg font-bold ' + rankClass + '">' + rankDisplay + '</span></div>';
   html += '<div class="col-span-3"><span class="font-semibold text-sm ' + (isFav ? "text-augusta-gold" : "text-white") + '">' + highlightMatch(entry.name, searchQuery) + '</span>' + payoutBadge + moveHtml + '<span class="text-xs text-gray-400 ml-2">TB: ' + entry.winningScore + '</span></div>';
   for (let r = 0; r < 4; r++) {
     const rc = roundTotals[r] > 0 ? "text-green-400" : roundTotals[r] < 0 ? "text-red-400" : "text-gray-400";
@@ -1125,7 +1137,7 @@ function renderPayouts() {
 
     html += '<div onclick="expandFromPayouts(' + entry.entryIdx + ')" class="flex items-center justify-between px-3 py-1.5 rounded cursor-pointer ' + (isFav ? 'bg-augusta-gold/10' : 'hover:bg-board-hover') + '">';
     html += '<div class="flex items-center gap-2">';
-    html += '<span class="text-sm font-bold text-gray-400 w-6">' + entry.rank + '</span>';
+    html += '<span class="text-sm font-bold text-gray-400 w-6">' + (entry.tied ? 'T' : '') + entry.rank + '</span>';
     html += '<span class="text-sm ' + (isFav ? 'text-augusta-gold font-semibold' : 'text-white') + '">' + entry.name + '</span>';
     html += '</div>';
     html += '<div class="flex items-center gap-4">';
@@ -1295,7 +1307,7 @@ function renderDetailCard(entry, isModal = false) {
   // Header
   html += '<div class="flex items-center justify-between mb-4">';
   html += '<div><div class="text-lg font-bold text-white">' + entry.name + '</div>';
-  html += '<div class="text-sm text-gray-400">Rank #' + entry.rank + ' of ' + allScored.length + ' \u2022 Tiebreaker: ' + entry.winningScore + '</div></div>';
+  html += '<div class="text-sm text-gray-400">Rank ' + (entry.tied ? 'T' : '') + entry.rank + ' of ' + allScored.length + ' \u2022 Tiebreaker: ' + entry.winningScore + '</div></div>';
   html += '<div class="text-3xl font-black ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '<span class="text-sm font-normal text-gray-400"> pts</span></div>';
   html += '</div>';
 
@@ -1931,6 +1943,8 @@ function buildProbRow(r) {
   const isFav = favorites.has(r.name);
   const entry = allScored.find(function(e) { return e.name === r.name; });
   const rank = entry ? entry.rank : "?";
+  const tied = entry ? entry.tied : false;
+  const rankDisplay = (tied ? 'T' : '') + rank;
   const pts = entry ? entry.totalPoints : 0;
   const ptsColor = pts > 0 ? "text-green-400" : pts < 0 ? "text-red-400" : "text-gray-400";
   const b = r.rankBuckets;
@@ -1949,7 +1963,7 @@ function buildProbRow(r) {
   left.appendChild(star);
   const rankEl = document.createElement("span");
   rankEl.className = "text-white font-bold text-sm";
-  rankEl.textContent = rank;
+  rankEl.textContent = rankDisplay;
   left.appendChild(rankEl);
   row.appendChild(left);
 
