@@ -244,7 +244,15 @@ function parseESPNData(apiData) {
     }
   }
 
-  return { golfers, eventStatus, currentRound, worstScorePerRound };
+  // Check if the current round is complete (all golfers who started it have finished 18 holes)
+  let roundComplete = false;
+  if (currentRound > 0 && eventStatus === "In Progress") {
+    const ri = currentRound - 1;
+    const golfersInRound = [...golfers.values()].filter(g => g.rounds[ri].holesCompleted > 0);
+    roundComplete = golfersInRound.length > 0 && golfersInRound.every(g => g.rounds[ri].complete);
+  }
+
+  return { golfers, eventStatus, currentRound, roundComplete, worstScorePerRound };
 }
 
 function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores, currentRound) {
@@ -430,8 +438,11 @@ async function fetchAndScore() {
     document.getElementById("liveStatus").textContent = "LIVE";
     document.getElementById("liveStatus").className = "text-green-300 font-medium";
 
+    const statusText = lastData.roundComplete
+      ? "End of Round " + lastData.currentRound
+      : lastData.eventStatus;
     const roundInfo = lastData.currentRound > 0
-      ? "Round " + lastData.currentRound + " • " + lastData.eventStatus
+      ? "Round " + lastData.currentRound + " • " + statusText
       : lastData.eventStatus;
     document.getElementById("roundInfo").textContent = roundInfo + " • Updated " + lastUpdate.toLocaleTimeString();
 
