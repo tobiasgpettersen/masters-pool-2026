@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0.4] - 2026-04-10
+
+### Added
+- GoatCounter event tracking for tab switches, participant expansions, favorites, search queries, stats sorting, rule section opens, and payouts clicks
+- Analytics helper with debounced search tracking (fires after 1s pause, 3+ characters)
+
 ## [0.1.0.3] - 2026-04-10
 
 ### Added
