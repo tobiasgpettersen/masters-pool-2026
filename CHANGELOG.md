@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1.2] - 2026-04-11
+
+### Fixed
+- Active players sharing a score with cut/WD players no longer show inflated positions from ESPN (positions recomputed from active-player pool only)
+- Position "T" prefix now only appears for actual ties among active players (was hardcoded on every position)
+- WD/DQ players no longer block cut detection by failing the all-R2-complete check
+
 ## [0.1.1.1] - 2026-04-11
 
 ### Fixed
