@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1.0] - 2026-04-11
+
+### Added
+- Participant detail modal on Player Stats page: click any participant name in a golfer's expanded row to see their full team breakdown in a popup overlay
+- Relationship lens: connecting golfer is highlighted with golden ring and "LINKED" badge in the modal
+- Context chip showing which golfer connects you to the participant, with pick type, points contributed, and ownership percentage
+- Prev/next navigation to browse through all owners of the same golfer without closing the modal (wraps around)
+- Bidirectional linking: click any golfer name in the modal to jump to that golfer's Player Stats row
+- Keyboard navigation: Escape closes modal, Left/Right arrows navigate between owners
+- Modal auto-refreshes when live data updates during the tournament
+- iOS-compatible scroll lock prevents background scrolling when modal is open
+- Accessible modal with role="dialog", aria-modal, and proper close behavior
+
 ## [0.1.0.5] - 2026-04-10
 
 ### Fixed
