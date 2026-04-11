@@ -834,6 +834,7 @@ let expandedEntries = new Set();
 function switchTab(tab) {
   trackEvent('tab/' + tab, 'Tab: ' + tab);
   currentTab = tab;
+  _scrollAnchorIdx = null; // Clear scroll anchor on tab switch
   document.querySelectorAll(".tab-btn").forEach(b => {
     const isActive = b.id === "tab-" + tab;
     b.className = "tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold " +
@@ -861,6 +862,10 @@ function renderCurrentTab() {
     renderGolferModalContent();
     var list = document.getElementById('golferModalList');
     if (list) list.scrollTop = scrollPos;
+    // Re-bind focus trap after innerHTML replacement (fixes stale DOM refs)
+    var gModal = document.getElementById('golferModal');
+    releaseFocusTrap(gModal);
+    trapFocus(gModal);
   }
 }
 
@@ -1728,6 +1733,8 @@ var golferModalTriggerEl = null; // for focus restoration
 function openGolferModal(golferNormalized, sourceEntryIdx) {
   // Mutual exclusion: close entry modal if open
   if (modalOpen) closeEntryModal();
+  // Invalidate any pending close timeout from a prior close
+  ++_golferModalCloseId;
 
   golferModalOpen = true;
   golferModalName = golferNormalized;
@@ -1982,17 +1989,18 @@ document.getElementById("searchInput").addEventListener("input", function(e) {
 });
 
 document.addEventListener("keydown", function(e) {
+  var isInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
   // Golfer modal takes highest priority
   if (golferModalOpen) {
     if (e.key === "Escape") { closeGolferModal(); e.preventDefault(); }
-    else if (e.key === "ArrowLeft") { navigateGolferModal(-1); e.preventDefault(); }
-    else if (e.key === "ArrowRight") { navigateGolferModal(1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowLeft") { navigateGolferModal(-1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowRight") { navigateGolferModal(1); e.preventDefault(); }
     return;
   }
   if (modalOpen) {
     if (e.key === "Escape") { closeEntryModal(); e.preventDefault(); }
-    else if (e.key === "ArrowLeft") { navigateModalOwner(-1); e.preventDefault(); }
-    else if (e.key === "ArrowRight") { navigateModalOwner(1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowLeft") { navigateModalOwner(-1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowRight") { navigateModalOwner(1); e.preventDefault(); }
     return;
   }
   if (e.key === "Escape" && expandedEntries.size > 0) { expandedEntries.clear(); renderLeaderboard(); }
