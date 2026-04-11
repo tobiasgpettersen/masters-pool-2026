@@ -272,6 +272,7 @@ function parseESPNData(apiData) {
       rounds,
       overallScore,
       position,
+      tied: false,
       sortOrder,
       isActive,
       teeTime: null
@@ -301,15 +302,18 @@ function parseESPNData(apiData) {
     let rank = 1;
     for (let i = 0; i < sorted.length; i++) {
       if (i > 0 && sorted[i].scoreNum !== sorted[i - 1].scoreNum) rank = i + 1;
+      const isTied = (i > 0 && sorted[i].scoreNum === sorted[i - 1].scoreNum) ||
+        (i < sorted.length - 1 && sorted[i].scoreNum === sorted[i + 1].scoreNum);
       const g = golfers.get(sorted[i].name);
       g.position = rank;
+      g.tied = isTied;
     }
   }
 
   // Detect missed cut: top 50 and ties after round 2 (Masters rule)
   // ESPN may not flag cut players in status immediately, so we compute it independently
   // from 2-round totals once all players have completed R2
-  const allR2Complete = [...golfers.values()].every(g => g.rounds[1].complete);
+  const allR2Complete = [...golfers.values()].every(g => !g.isActive || g.rounds[1].complete);
   if (allR2Complete && golfers.size > 50) {
     // Compute 2-round stroke totals
     const twoRoundScores = [];
@@ -331,7 +335,13 @@ function parseESPNData(apiData) {
       }
     }
 
-    // Recompute positions after cut: only active players should be ranked
+  }
+
+  // Recompute positions for active players only.
+  // ESPN positions include cut/WD/DQ players in the ranking, inflating positions.
+  // This runs after both ESPN data and cut detection to ensure correct active-only ranking.
+  const hasInactivePlayers = [...golfers.values()].some(g => !g.isActive);
+  if (hasInactivePlayers) {
     const activeSorted = [...golfers.entries()]
       .filter(([, g]) => g.isActive)
       .map(([name, g]) => {
@@ -342,11 +352,28 @@ function parseESPNData(apiData) {
     let activeRank = 1;
     for (let i = 0; i < activeSorted.length; i++) {
       if (i > 0 && activeSorted[i].scoreNum !== activeSorted[i - 1].scoreNum) activeRank = i + 1;
-      golfers.get(activeSorted[i].name).position = activeRank;
+      const isTied = (i > 0 && activeSorted[i].scoreNum === activeSorted[i - 1].scoreNum) ||
+        (i < activeSorted.length - 1 && activeSorted[i].scoreNum === activeSorted[i + 1].scoreNum);
+      const g = golfers.get(activeSorted[i].name);
+      g.position = activeRank;
+      g.tied = isTied;
     }
-    // Clear positions for cut players
     for (const [, g] of golfers) {
-      if (!g.isActive) g.position = null;
+      if (!g.isActive) { g.position = null; g.tied = false; }
+    }
+  }
+
+  // Compute tied flag from position data for active players (covers all paths:
+  // ESPN-provided positions, computed positions, and post-cut re-ranking)
+  const positionCounts = {};
+  for (const [, g] of golfers) {
+    if (g.isActive && g.position != null) {
+      positionCounts[g.position] = (positionCounts[g.position] || 0) + 1;
+    }
+  }
+  for (const [, g] of golfers) {
+    if (g.isActive && g.position != null) {
+      g.tied = positionCounts[g.position] > 1;
     }
   }
 
@@ -517,6 +544,7 @@ function calculateAllScores(parsedData) {
         salary: FIELD_SALARIES[playerName] || 0,
         overallScore: golferData?.overallScore || "N/A",
         position: golferData?.position || null,
+        tied: golferData?.tied || false,
         isActive: golferData?.isActive !== false,
         thru,
         isOnCourse,
@@ -993,6 +1021,7 @@ function renderStats() {
       normalizedName,
       overallScore: data.overallScore,
       position: data.position,
+      tied: data.tied,
       pickCount,
       asBonusCount,
       poolPoints: pts.total,
@@ -1078,7 +1107,8 @@ function renderStats() {
     html += '</div></td>';
 
     // Position
-    html += '<td class="py-2 px-1 text-center text-xs font-mono">' + (!g.isActive ? '<span class="text-red-400">MC</span>' : g.position ? (g.position <= 10 ? '<span class="text-green-400">T' + g.position + '</span>' : '<span class="text-gray-400">T' + g.position + '</span>') : '<span class="text-gray-600">-</span>') + '</td>';
+    const posPrefix = g.tied ? 'T' : '';
+    html += '<td class="py-2 px-1 text-center text-xs font-mono">' + (!g.isActive ? '<span class="text-red-400">MC</span>' : g.position ? (g.position <= 10 ? '<span class="text-green-400">' + posPrefix + g.position + '</span>' : '<span class="text-gray-400">' + posPrefix + g.position + '</span>') : '<span class="text-gray-600">-</span>') + '</td>';
 
     // Score
     html += '<td class="py-2 px-1 text-center font-mono">' + (g.overallScore || "-") + '</td>';
@@ -1394,7 +1424,8 @@ function renderDetailCard(entry, isModal = false, highlightGolfer = null) {
     }
     if (p.isBonus) html += ' <span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
     html += '</td>';
-    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (!p.isActive ? '<span class="text-red-400">MC</span>' : p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
+    const detailPosPrefix = p.tied ? 'T' : '';
+    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (!p.isActive ? '<span class="text-red-400">MC</span>' : p.position ? (p.position <= 10 ? '<span class="text-green-400">' + detailPosPrefix + p.position + '</span>' : detailPosPrefix + p.position) : '-') + '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-400 text-xs">' + p.salary + '</td>';
     html += '<td class="py-2 px-1 text-center font-mono">' + (p.overallScore || "-") + '</td>';
     for (let r = 0; r < 4; r++) {
