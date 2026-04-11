@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2.1] - 2026-04-11
+
+### Added
+- Favorites onboarding hint card: when no favorites are selected, a gold-bordered card at the top of the leaderboard shows "Tap the ★ next to any name to pin your favorites here"
+- Card disappears automatically when you star your first entry, reappears if all favorites are removed
+- Uses `favorites.size === 0` guard to avoid showing the hint when favorites exist but are filtered out by search
+
 ## [0.1.2.0] - 2026-04-11
 
 ### Added
