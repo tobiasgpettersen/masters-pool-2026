@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1.1] - 2026-04-11
+
+### Fixed
+- Players who missed the cut now detected independently from ESPN data using 2-round stroke totals (top 50 and ties rule), since ESPN's API delays flagging cut status
+- Cut players receive the worst score of the day penalty for rounds they don't play (live-updating as R3/R4 scores come in)
+- Position column shows "MC" (Missed Cut) in red for cut players instead of their old position number
+- Positions recomputed after cut detection so only active players are ranked (no inflated positions from cut players)
+- Player Stats default sort changed to position ascending (leaderboard order) instead of pool points
+
 ## [0.1.1.0] - 2026-04-11
 
 ### Added
