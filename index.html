@@ -306,6 +306,50 @@ function parseESPNData(apiData) {
     }
   }
 
+  // Detect missed cut: top 50 and ties after round 2 (Masters rule)
+  // ESPN may not flag cut players in status immediately, so we compute it independently
+  // from 2-round totals once all players have completed R2
+  const allR2Complete = [...golfers.values()].every(g => g.rounds[1].complete);
+  if (allR2Complete && golfers.size > 50) {
+    // Compute 2-round stroke totals
+    const twoRoundScores = [];
+    for (const [name, g] of golfers) {
+      const total = (g.rounds[0].score || 0) + (g.rounds[1].score || 0);
+      twoRoundScores.push({ name, total });
+    }
+    twoRoundScores.sort((a, b) => a.total - b.total);
+
+    // Cut line: the score at position 50 (everyone at or below this score makes it)
+    const cutLineScore = twoRoundScores[49].total;
+
+    for (const entry of twoRoundScores) {
+      if (entry.total > cutLineScore) {
+        const g = golfers.get(entry.name);
+        if (g.isActive && g.rounds[2].holesCompleted === 0) {
+          g.isActive = false;
+        }
+      }
+    }
+
+    // Recompute positions after cut: only active players should be ranked
+    const activeSorted = [...golfers.entries()]
+      .filter(([, g]) => g.isActive)
+      .map(([name, g]) => {
+        const scoreNum = g.overallScore === "E" ? 0 : parseInt(g.overallScore, 10) || 0;
+        return { name, scoreNum };
+      })
+      .sort((a, b) => a.scoreNum - b.scoreNum);
+    let activeRank = 1;
+    for (let i = 0; i < activeSorted.length; i++) {
+      if (i > 0 && activeSorted[i].scoreNum !== activeSorted[i - 1].scoreNum) activeRank = i + 1;
+      golfers.get(activeSorted[i].name).position = activeRank;
+    }
+    // Clear positions for cut players
+    for (const [, g] of golfers) {
+      if (!g.isActive) g.position = null;
+    }
+  }
+
   // Check if the current round is complete (all active golfers who started it have finished 18 holes)
   let roundComplete = false;
   if (currentRound > 0 && eventStatus === "In Progress") {
@@ -552,8 +596,8 @@ let allScored = [];
 let prevRanks = new Map(); // name -> previous rank
 
 // Stats tab sort/expand state (persists across 30s data refreshes)
-let statsSortCol = 'poolPoints';
-let statsSortDir = 'desc';
+let statsSortCol = 'position';
+let statsSortDir = 'asc';
 let expandedStatsGolfer = null;
 
 // Entry detail modal state
@@ -1034,7 +1078,7 @@ function renderStats() {
     html += '</div></td>';
 
     // Position
-    html += '<td class="py-2 px-1 text-center text-xs font-mono">' + (g.position ? (g.position <= 10 ? '<span class="text-green-400">T' + g.position + '</span>' : '<span class="text-gray-400">T' + g.position + '</span>') : '<span class="text-gray-600">-</span>') + '</td>';
+    html += '<td class="py-2 px-1 text-center text-xs font-mono">' + (!g.isActive ? '<span class="text-red-400">MC</span>' : g.position ? (g.position <= 10 ? '<span class="text-green-400">T' + g.position + '</span>' : '<span class="text-gray-400">T' + g.position + '</span>') : '<span class="text-gray-600">-</span>') + '</td>';
 
     // Score
     html += '<td class="py-2 px-1 text-center font-mono">' + (g.overallScore || "-") + '</td>';
@@ -1350,7 +1394,7 @@ function renderDetailCard(entry, isModal = false, highlightGolfer = null) {
     }
     if (p.isBonus) html += ' <span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded">BONUS</span>';
     html += '</td>';
-    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
+    html += '<td class="py-2 px-1 text-center text-gray-400 text-xs font-mono">' + (!p.isActive ? '<span class="text-red-400">MC</span>' : p.position ? (p.position <= 10 ? '<span class="text-green-400">T' + p.position + '</span>' : 'T' + p.position) : '-') + '</td>';
     html += '<td class="py-2 px-1 text-center text-gray-400 text-xs">' + p.salary + '</td>';
     html += '<td class="py-2 px-1 text-center font-mono">' + (p.overallScore || "-") + '</td>';
     for (let r = 0; r < 4; r++) {
