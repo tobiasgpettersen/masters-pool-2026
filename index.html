@@ -45,6 +45,16 @@ h1, h2, h3, .font-display { font-family: 'Playfair Display', Georgia, serif; }
 .rank-silver { background: linear-gradient(135deg, #9ca3af 0%, #d1d5db 50%, #9ca3af 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .rank-bronze { background: linear-gradient(135deg, #b45309 0%, #d97706 50%, #b45309 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 :focus-visible { outline: 2px solid #c8a951; outline-offset: 2px; border-radius: 4px; }
+@keyframes flashGold { 0% { box-shadow: 0 0 0 3px rgba(200,169,81,0.6); } 100% { box-shadow: 0 0 0 3px transparent; } }
+.flash-gold { animation: flashGold 1s ease-out; }
+.golfer-modal-backdrop { opacity: 0; transition: opacity 200ms ease-out; }
+.golfer-modal-backdrop.show { opacity: 1; }
+.golfer-modal-card { transform: translateY(100%); opacity: 0; transition: transform 300ms ease-out, opacity 200ms ease-out; }
+.golfer-modal-card.show { transform: translateY(0); opacity: 1; }
+@media (min-width: 768px) { .golfer-modal-card { transform: scale(0.95); } .golfer-modal-card.show { transform: scale(1); } }
+[data-entry-idx] { scroll-margin-top: 16px; }
+.golfer-name-link { text-decoration: underline; text-underline-offset: 2px; text-decoration-color: #4b5563; cursor: pointer; }
+.golfer-name-link:hover { text-decoration-color: #c8a951; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 </style>
 <script data-goatcounter="https://masters-pool-2026.goatcounter.com/count"
@@ -635,6 +645,15 @@ let modalHighlightGolfer = null;
 let modalOwnerList = [];
 let modalOwnerIndex = 0;
 
+// Golfer ownership modal state
+let golferModalOpen = false;
+let golferModalName = null;           // normalized golfer name
+let golferModalSourceEntryIdx = null; // which entry was expanded when user clicked
+let golferModalGolferList = [];       // all golfers from source entry (for prev/next)
+let golferModalGolferIndex = 0;       // current position in golfer list
+let golferOwnersIndex = new Map();    // normalizedName -> [{entryIdx, name, rank, tied, totalPoints, isBonus, playerPoints}]
+let entryByIdx = new Map();           // entryIdx -> entry (for O(1) shared-player calc)
+
 function sortStats(col) {
   if (statsSortCol === col) {
     statsSortDir = statsSortDir === 'desc' ? 'asc' : 'desc';
@@ -694,6 +713,22 @@ async function fetchAndScore() {
     for (const e of allScored) oldRanks.set(e.name, e.rank);
 
     allScored = calculateAllScores(lastData);
+
+    // Build golfer ownership index (after scoring so ranks are available)
+    golferOwnersIndex = new Map();
+    entryByIdx = new Map();
+    for (const entry of allScored) {
+      entryByIdx.set(entry.entryIdx, entry);
+      for (const p of entry.players) {
+        const norm = normalizeName(p.name);
+        if (!golferOwnersIndex.has(norm)) golferOwnersIndex.set(norm, []);
+        golferOwnersIndex.get(norm).push({
+          entryIdx: entry.entryIdx, name: entry.name, rank: entry.rank,
+          tied: entry.tied, totalPoints: entry.totalPoints,
+          isBonus: p.isBonus, playerPoints: p.total
+        });
+      }
+    }
 
     // Calculate rank changes (only if we had previous data)
     if (oldRanks.size > 0) {
@@ -799,6 +834,7 @@ let expandedEntries = new Set();
 function switchTab(tab) {
   trackEvent('tab/' + tab, 'Tab: ' + tab);
   currentTab = tab;
+  _scrollAnchorIdx = null; // Clear scroll anchor on tab switch
   document.querySelectorAll(".tab-btn").forEach(b => {
     const isActive = b.id === "tab-" + tab;
     b.className = "tab-btn whitespace-nowrap px-4 py-3 text-sm font-semibold " +
@@ -810,13 +846,27 @@ function switchTab(tab) {
 }
 
 function renderCurrentTab() {
-  if (currentTab === "leaderboard") renderLeaderboard();
+  if (currentTab === "leaderboard") {
+    renderLeaderboard();
+    // Re-anchor scroll after data refresh if a recent jump target exists
+    if (_scrollAnchorIdx !== null) _doScrollToEntry(_scrollAnchorIdx, false);
+  }
   else if (currentTab === "stats") renderStats();
   else if (currentTab === "payouts") renderPayouts();
   else if (currentTab === "projections") renderProjections();
   else if (currentTab === "rules") renderRules();
-  // Re-render modal if open (keeps data fresh during live polling)
+  // Re-render modals if open (keeps data fresh during live polling)
   if (modalOpen) renderModalContent();
+  if (golferModalOpen) {
+    var scrollPos = document.getElementById('golferModalList') ? document.getElementById('golferModalList').scrollTop : 0;
+    renderGolferModalContent();
+    var list = document.getElementById('golferModalList');
+    if (list) list.scrollTop = scrollPos;
+    // Re-bind focus trap after innerHTML replacement (fixes stale DOM refs)
+    var gModal = document.getElementById('golferModal');
+    releaseFocusTrap(gModal);
+    trapFocus(gModal);
+  }
 }
 
 function renderLeaderboard() {
@@ -901,7 +951,7 @@ function renderRow(entry) {
   const isExpanded = expandedEntries.has(entry.entryIdx);
   const chevronSvg = '<svg class="w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0 ' + (isExpanded ? 'rotate-180' : '') + '" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
 
-  let html = '<div class="rounded-lg ' + bgClass + moverClass + ' transition-all duration-150 ' + (isExpanded ? 'ring-1 ring-augusta-gold/40' : '') + '">';
+  let html = '<div data-entry-idx="' + entry.entryIdx + '" class="rounded-lg ' + bgClass + moverClass + ' transition-all duration-150 ' + (isExpanded ? 'ring-1 ring-augusta-gold/40' : '') + '">';
 
   // Mobile layout
   html += '<div class="md:hidden p-3 flex items-center justify-between cursor-pointer" onclick="toggleEntryExpand(' + entry.entryIdx + ')" tabindex="0" role="button" aria-expanded="' + isExpanded + '" aria-label="View details for ' + entry.name + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleEntryExpand(' + entry.entryIdx + ')}">';
@@ -1373,14 +1423,68 @@ function toggleEntryExpand(entryIdx) {
   renderLeaderboard();
 }
 
+var _scrollAnchorIdx = null;
+var _scrollAnchorTimeout = null;
+
+function scrollToEntry(entryIdx) {
+  expandedEntries.add(entryIdx);
+  renderLeaderboard();
+  _doScrollToEntry(entryIdx, true);
+  // Persist scroll anchor for 5s so data refreshes re-scroll to this entry
+  _scrollAnchorIdx = entryIdx;
+  clearTimeout(_scrollAnchorTimeout);
+  _scrollAnchorTimeout = setTimeout(function() { _scrollAnchorIdx = null; }, 5000);
+}
+
+function _doScrollToEntry(entryIdx, flash) {
+  var rows = document.querySelectorAll('[data-entry-idx="' + entryIdx + '"]');
+  var row = rows.length > 0 ? rows[rows.length - 1] : null;
+  if (row) {
+    var rect = row.getBoundingClientRect();
+    var scrollTop = window.pageYOffset + rect.top - 20;
+    window.scrollTo({ top: Math.max(0, scrollTop), behavior: 'instant' });
+    if (flash) {
+      row.classList.add('flash-gold');
+      setTimeout(function() { row.classList.remove('flash-gold'); }, 1100);
+    }
+  }
+}
+
 function expandFromPayouts(entryIdx) {
   var entry = allScored.find(function(e){return e.entryIdx===entryIdx});
   if (entry) trackEvent('payouts-click/' + entry.name, 'Payouts click: ' + entry.name);
   switchTab('leaderboard');
-  expandedEntries.add(entryIdx);
-  renderLeaderboard();
-  var row = document.querySelector('[aria-label="View details for ' + allScored.find(function(e){return e.entryIdx===entryIdx}).name + '"]');
-  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scrollToEntry(entryIdx);
+}
+
+function jumpToLeaderboardEntry(entryIdx, fromGolferNormalized) {
+  var entry = entryByIdx.get(entryIdx);
+  if (entry) trackEvent('golfer-modal/jump/' + entry.name, 'Jump to: ' + entry.name);
+
+  // Instant close (no animation) to avoid overlap with scroll
+  golferModalOpen = false;
+  var modal = document.getElementById('golferModal');
+  releaseFocusTrap(modal);
+  modal.classList.add('hidden');
+  modal.querySelector('.golfer-modal-backdrop').classList.remove('show');
+  modal.querySelector('.golfer-modal-card').classList.remove('show');
+  // Restore scroll from iOS lock
+  var scrollY = document.body.style.top;
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, parseInt(scrollY || '0') * -1);
+  golferModalName = null;
+  golferModalSourceEntryIdx = null;
+  golferModalGolferList = [];
+  golferModalGolferIndex = 0;
+
+  // Clear search filter so target entry is guaranteed to render
+  if (searchQuery) {
+    searchQuery = '';
+    document.getElementById('searchInput').value = '';
+  }
+  scrollToEntry(entryIdx);
 }
 
 function renderDetailCard(entry, isModal = false, highlightGolfer = null) {
@@ -1409,7 +1513,13 @@ function renderDetailCard(entry, isModal = false, highlightGolfer = null) {
     const rowBg = isHighlighted ? ' bg-augusta-gold/10 ring-1 ring-augusta-gold/40' : !p.isActive ? ' bg-red-900/20' : cutRisk ? ' bg-orange-900/15' : '';
     const rowId = isHighlighted ? ' id="modal-highlighted-golfer"' : '';
     html += '<tr class="border-t border-board-border/50' + rowBg + '"' + rowId + '>';
-    const nameClickable = isModal ? ' cursor-pointer hover:underline" onclick="crosslinkToGolfer(\'' + normalizeName(p.name).replace(/'/g, "\\'") + '\')"' : '"';
+    const golferNorm = normalizeName(p.name).replace(/'/g, "\\'");
+    var nameClickable;
+    if (isModal) {
+      nameClickable = ' cursor-pointer hover:underline" onclick="crosslinkToGolfer(\'' + golferNorm + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();crosslinkToGolfer(\'' + golferNorm + '\')}"';
+    } else {
+      nameClickable = ' golfer-name-link" onclick="event.stopPropagation(); openGolferModal(\'' + golferNorm + '\', ' + entry.entryIdx + ')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();event.stopPropagation();openGolferModal(\'' + golferNorm + '\', ' + entry.entryIdx + ')}"';
+    }
     html += '<td class="py-2 pr-2"><span class="font-medium ' + (!p.isActive ? 'text-red-400' : cutRisk ? 'text-orange-400' : 'text-white') + nameClickable + '>' + p.displayName + (isHighlighted ? ' <span class="text-xs bg-augusta-gold/20 text-augusta-gold px-1 rounded">LINKED</span>' : '') + '</span>';
     if (!p.isActive) html += ' <span class="text-xs bg-red-500/20 text-red-400 px-1 rounded">CUT</span>';
     else if (cutRisk) html += ' <span class="text-xs bg-orange-500/20 text-orange-400 px-1 rounded">CUT RISK</span>';
@@ -1485,6 +1595,7 @@ function openEntryModal(entryIdx, highlightGolferNormalized) {
   document.body.style.top = '-' + window.scrollY + 'px';
   document.body.style.width = '100%';
   modal.setAttribute('aria-labelledby', 'modalTitle');
+  trapFocus(modal);
 
   // Auto-scroll to highlighted golfer after render
   setTimeout(function() {
@@ -1501,6 +1612,7 @@ function closeEntryModal() {
   modalOwnerIndex = 0;
 
   var modal = document.getElementById('entryModal');
+  releaseFocusTrap(modal);
   modal.classList.add('hidden');
   var scrollY = document.body.style.top;
   document.body.style.position = '';
@@ -1615,6 +1727,242 @@ function renderModalContent() {
   content.innerHTML = html;
 }
 
+// ===== GOLFER OWNERSHIP MODAL =====
+var golferModalTriggerEl = null; // for focus restoration
+
+function openGolferModal(golferNormalized, sourceEntryIdx) {
+  // Mutual exclusion: close entry modal if open
+  if (modalOpen) closeEntryModal();
+  // Invalidate any pending close timeout from a prior close
+  ++_golferModalCloseId;
+
+  golferModalOpen = true;
+  golferModalName = golferNormalized;
+  golferModalSourceEntryIdx = sourceEntryIdx;
+
+  // Build golfer list from source entry's players
+  var sourceEntry = entryByIdx.get(sourceEntryIdx);
+  golferModalGolferList = sourceEntry ? sourceEntry.players.map(function(p) { return normalizeName(p.name); }) : [];
+  golferModalGolferIndex = golferModalGolferList.indexOf(golferNormalized);
+  if (golferModalGolferIndex === -1) golferModalGolferIndex = 0;
+
+  // Save trigger element for focus restoration
+  golferModalTriggerEl = document.activeElement;
+
+  trackEvent('golfer-modal/open/' + golferNormalized, 'Golfer modal: ' + golferNormalized);
+  renderGolferModalContent();
+
+  var modal = document.getElementById('golferModal');
+  modal.classList.remove('hidden');
+  // iOS scroll lock
+  document.body.style.position = 'fixed';
+  document.body.style.top = '-' + window.scrollY + 'px';
+  document.body.style.width = '100%';
+
+  // Trigger transition + focus trap
+  requestAnimationFrame(function() {
+    modal.querySelector('.golfer-modal-backdrop').classList.add('show');
+    modal.querySelector('.golfer-modal-card').classList.add('show');
+    trapFocus(modal);
+    var closeBtn = document.getElementById('golferModalClose');
+    if (closeBtn) closeBtn.focus();
+  });
+}
+
+var _golferModalCloseId = 0;
+function closeGolferModal() {
+  golferModalOpen = false;
+  var closeId = ++_golferModalCloseId;
+  var modal = document.getElementById('golferModal');
+  releaseFocusTrap(modal);
+  modal.querySelector('.golfer-modal-backdrop').classList.remove('show');
+  modal.querySelector('.golfer-modal-card').classList.remove('show');
+  setTimeout(function() {
+    // Only hide if no new open happened since this close was initiated
+    if (_golferModalCloseId === closeId) modal.classList.add('hidden');
+  }, 200);
+
+  // Restore scroll
+  var scrollY = document.body.style.top;
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, parseInt(scrollY || '0') * -1);
+
+  // Restore focus
+  if (golferModalTriggerEl) {
+    golferModalTriggerEl.focus();
+    golferModalTriggerEl = null;
+  }
+
+  golferModalName = null;
+  golferModalSourceEntryIdx = null;
+  golferModalGolferList = [];
+  golferModalGolferIndex = 0;
+}
+
+function navigateGolferModal(direction) {
+  if (golferModalGolferList.length === 0) return;
+  golferModalGolferIndex += direction;
+  if (golferModalGolferIndex < 0) golferModalGolferIndex = golferModalGolferList.length - 1;
+  if (golferModalGolferIndex >= golferModalGolferList.length) golferModalGolferIndex = 0;
+  golferModalName = golferModalGolferList[golferModalGolferIndex];
+  trackEvent('golfer-modal/nav', 'Golfer modal navigate');
+  renderGolferModalContent();
+}
+
+function renderGolferModalContent() {
+  var content = document.getElementById('golferModalContent');
+  if (!content) return;
+
+  var owners = golferOwnersIndex.get(golferModalName) || [];
+  var golferData = lastData ? lastData.golfers.get(golferModalName) : null;
+  var golferDisplay = golferData ? golferData.displayName : golferModalName;
+  var golferPos = golferData ? golferData.position : null;
+  var golferTied = golferData ? golferData.tied : false;
+  var golferScore = golferData ? golferData.overallScore : '-';
+  var golferActive = golferData ? golferData.isActive : true;
+
+  // Count pick types
+  var mainCount = 0, bonusCount = 0;
+  for (var i = 0; i < owners.length; i++) {
+    if (owners[i].isBonus) bonusCount++; else mainCount++;
+  }
+  var ownershipPct = (owners.length / ENTRIES.length * 100).toFixed(0);
+
+  // Shared player calculation
+  var sourceEntry = entryByIdx.get(golferModalSourceEntryIdx);
+  var sourceNames = new Set();
+  if (sourceEntry) {
+    for (var s = 0; s < sourceEntry.players.length; s++) {
+      sourceNames.add(normalizeName(sourceEntry.players[s].name));
+    }
+  }
+
+  // Note: innerHTML usage here is safe — all data comes from ESPN API and hardcoded ENTRIES,
+  // not from user input. No untrusted content is rendered.
+  var html = '';
+
+  // Close button
+  html += '<button id="golferModalClose" onclick="closeGolferModal()" class="absolute top-3 right-3 text-gray-400 hover:text-white z-10 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Close">';
+  html += '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+  html += '</button>';
+
+  // Sticky header
+  html += '<div class="sticky top-0 bg-board-card z-10 px-5 pt-5 pb-3 border-b border-board-border/50">';
+  html += '<h2 id="golferModalTitle" class="text-lg font-bold text-white pr-8">' + golferDisplay + '</h2>';
+  html += '<div class="flex items-center gap-3 text-sm text-gray-400 mt-1">';
+  if (!golferActive) {
+    html += '<span class="text-red-400 font-medium">MC</span>';
+  } else if (golferPos) {
+    var posPrefix = golferTied ? 'T' : '';
+    html += '<span class="' + (golferPos <= 10 ? 'text-green-400' : 'text-gray-300') + ' font-mono">' + posPrefix + golferPos + '</span>';
+  }
+  html += '<span class="font-mono">' + (golferScore || '-') + '</span>';
+  html += '<span class="text-gray-600">|</span>';
+  html += '<span>Picked by ' + owners.length + '/' + ENTRIES.length + ' (' + ownershipPct + '%)</span>';
+  html += '</div>';
+  if (mainCount > 0 || bonusCount > 0) {
+    html += '<div class="text-xs text-gray-500 mt-1">As main: ' + mainCount + ' | As bonus: ' + bonusCount + '</div>';
+  }
+  html += '</div>';
+
+  // Owner list
+  html += '<div id="golferModalList" class="overflow-y-auto flex-1 px-2 py-2">';
+  if (owners.length === 0) {
+    html += '<div class="text-center text-gray-400 py-8 px-4">';
+    html += '<div class="text-lg mb-2">No entries picked ' + golferDisplay + '</div>';
+    html += '<div class="text-sm">Try exploring other golfers with the arrows below.</div>';
+    html += '</div>';
+  } else if (owners.length === 1 && owners[0].entryIdx === golferModalSourceEntryIdx) {
+    html += '<div class="text-center text-gray-400 py-8 px-4">';
+    html += '<div class="text-lg mb-2">You\'re the only entry with ' + golferDisplay + '</div>';
+    html += '<div class="text-sm">Explore other golfers with the arrows below.</div>';
+    html += '</div>';
+  } else {
+    for (var oi = 0; oi < owners.length; oi++) {
+      var ow = owners[oi];
+      var isSource = ow.entryIdx === golferModalSourceEntryIdx;
+      var ptColor = ow.totalPoints > 0 ? 'text-green-400' : ow.totalPoints < 0 ? 'text-red-400' : 'text-gray-400';
+
+      // Shared player count
+      var shared = 0;
+      var owEntry = entryByIdx.get(ow.entryIdx);
+      if (owEntry && sourceNames.size > 0) {
+        for (var sp = 0; sp < owEntry.players.length; sp++) {
+          if (sourceNames.has(normalizeName(owEntry.players[sp].name))) shared++;
+        }
+      }
+
+      // Heat-coded badge color: 1=gray, 2-3=blue, 4-5=gold
+      var badgeColor = shared >= 4 ? 'bg-augusta-gold/20 text-augusta-gold' : shared >= 2 ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-500';
+
+      var rowBg = isSource ? ' bg-augusta-gold/10 ring-1 ring-augusta-gold/30 rounded-lg' : ' rounded-lg hover:bg-board-hover';
+
+      html += '<div class="flex items-center justify-between px-3 py-2.5 min-h-[44px] cursor-pointer' + rowBg + '"';
+      html += ' onclick="jumpToLeaderboardEntry(' + ow.entryIdx + ', \'' + golferModalName.replace(/'/g, "\\'") + '\')"';
+      html += ' role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();jumpToLeaderboardEntry(' + ow.entryIdx + ', \'' + golferModalName.replace(/'/g, "\\'") + '\')}">';
+
+      html += '<div class="flex items-center gap-2 min-w-0">';
+      html += '<span class="text-gray-500 text-xs font-mono w-8 shrink-0">#' + (ow.tied ? 'T' : '') + ow.rank + '</span>';
+      html += '<span class="text-gray-200 truncate">' + ow.name + '</span>';
+      if (ow.isBonus) html += '<span class="text-xs bg-yellow-500/20 text-yellow-400 px-1 rounded shrink-0">B</span>';
+      if (isSource) html += '<span class="text-xs bg-augusta-gold/20 text-augusta-gold px-1 rounded shrink-0">YOU</span>';
+      html += '</div>';
+
+      html += '<div class="flex items-center gap-2 shrink-0 ml-2">';
+      if (shared > 0 && !isSource) {
+        html += '<span class="text-xs px-1.5 py-0.5 rounded ' + badgeColor + '">' + shared + ' in common</span>';
+      }
+      html += '<span class="font-mono text-sm ' + ptColor + '">' + formatPoints(ow.totalPoints) + '</span>';
+      html += '</div>';
+
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  // Sticky bottom nav
+  if (golferModalGolferList.length > 1) {
+    html += '<div class="sticky bottom-0 bg-board-card border-t border-board-border/50 flex items-center justify-between px-4 py-3">';
+    html += '<button onclick="navigateGolferModal(-1)" class="text-gray-400 hover:text-white flex items-center gap-1 p-2 min-w-[44px] min-h-[44px] rounded hover:bg-board-hover" aria-label="Previous golfer">';
+    html += '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>';
+    html += '<span class="hidden sm:inline text-sm">Prev</span></button>';
+    html += '<span class="text-gray-500 text-xs">Golfer ' + (golferModalGolferIndex + 1) + ' of ' + golferModalGolferList.length + '</span>';
+    html += '<button onclick="navigateGolferModal(1)" class="text-gray-400 hover:text-white flex items-center gap-1 p-2 min-w-[44px] min-h-[44px] rounded hover:bg-board-hover" aria-label="Next golfer">';
+    html += '<span class="hidden sm:inline text-sm">Next</span>';
+    html += '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>';
+    html += '</button>';
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+// ===== FOCUS TRAP =====
+function trapFocus(modalEl) {
+  var focusable = modalEl.querySelectorAll('button, [role="button"][tabindex="0"], a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (focusable.length === 0) return;
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+  modalEl._trapHandler = function(e) {
+    if (e.key !== 'Tab') return;
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
+  modalEl.addEventListener('keydown', modalEl._trapHandler);
+}
+
+function releaseFocusTrap(modalEl) {
+  if (modalEl._trapHandler) {
+    modalEl.removeEventListener('keydown', modalEl._trapHandler);
+    modalEl._trapHandler = null;
+  }
+}
+
 // ===== HELPERS =====
 function formatPoints(pts) {
   if (pts === 0) return "0";
@@ -1641,10 +1989,18 @@ document.getElementById("searchInput").addEventListener("input", function(e) {
 });
 
 document.addEventListener("keydown", function(e) {
+  var isInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+  // Golfer modal takes highest priority
+  if (golferModalOpen) {
+    if (e.key === "Escape") { closeGolferModal(); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowLeft") { navigateGolferModal(-1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowRight") { navigateGolferModal(1); e.preventDefault(); }
+    return;
+  }
   if (modalOpen) {
     if (e.key === "Escape") { closeEntryModal(); e.preventDefault(); }
-    else if (e.key === "ArrowLeft") { navigateModalOwner(-1); e.preventDefault(); }
-    else if (e.key === "ArrowRight") { navigateModalOwner(1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowLeft") { navigateModalOwner(-1); e.preventDefault(); }
+    else if (!isInput && e.key === "ArrowRight") { navigateModalOwner(1); e.preventDefault(); }
     return;
   }
   if (e.key === "Escape" && expandedEntries.size > 0) { expandedEntries.clear(); renderLeaderboard(); }
@@ -2496,6 +2852,15 @@ setInterval(fetchAndScore, POLL_INTERVAL);
   <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeEntryModal()"></div>
   <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
     <div class="bg-board-card border border-board-border rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto pointer-events-auto relative shadow-2xl" id="modalContent">
+    </div>
+  </div>
+</div>
+
+<!-- Golfer Ownership Modal -->
+<div id="golferModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="golferModalTitle">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm golfer-modal-backdrop" onclick="closeGolferModal()"></div>
+  <div class="absolute inset-0 flex items-end md:items-center justify-center p-0 md:p-4 pointer-events-none">
+    <div class="bg-board-card border border-board-border rounded-t-2xl md:rounded-xl w-full md:max-w-md max-h-[90dvh] overflow-hidden pointer-events-auto relative shadow-2xl flex flex-col golfer-modal-card" id="golferModalContent">
     </div>
   </div>
 </div>

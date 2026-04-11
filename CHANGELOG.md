@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2.0] - 2026-04-11
+
+### Added
+- Golfer ownership browser on the leaderboard: click any golfer name in an expanded entry to see who else picked that player
+- Ownership modal shows golfer position, score, pick count, ownership percentage, and main vs bonus breakdown
+- Heat-coded "in common" badges show shared player overlap (gray=1, blue=2-3, gold=4-5 shared players)
+- Click any owner in the modal to jump directly to their leaderboard entry with a gold flash animation
+- Prev/next arrows in the modal cycle through all 5 golfers from the source entry
+- Golfer names in leaderboard detail cards now have subtle underlines indicating they're clickable
+- Focus trap on both golfer ownership modal and existing entry modal for keyboard accessibility
+- Scroll anchoring persists for 5 seconds after jumping, so 30-second data refreshes don't disrupt your position
+- Bottom-sheet modal style on mobile (90dvh max height, slide-up transition)
+- GoatCounter tracking for modal opens, golfer cycling, and owner jumps
+
 ## [0.1.1.2] - 2026-04-11
 
 ### Fixed
