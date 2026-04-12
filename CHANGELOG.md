@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2.3] - 2026-04-12
+
+### Fixed
+- Playoff bonus guard: if two players tie after R4 and a playoff occurs, bonus points now stay in estimated (amber) mode until ESPN reports "Final", preventing both players from locking in +15
+- Active-player position re-ranking is skipped when the tournament is final, trusting ESPN's official positions (including playoff results) instead of overriding them with 72-hole score sorting
+- WD/DQ player positions are still nulled out even when re-ranking is skipped, preventing phantom finish bonuses
+
+### Added
+- Playoff indicator in status bar: shows "Playoff" instead of "End of Round 4" when R4 is complete but the tournament hasn't been finalized
+
 ## [0.1.2.2] - 2026-04-11
 
 ### Added
