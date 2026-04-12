@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2.4] - 2026-04-12
+
+### Fixed
+- Tournament status now shows "Final" instead of "Playoff" when all players have finished their rounds, even before ESPN flips to "Final" status
+- Added fallback detection: if R4 is complete and all active players have 18 holes done, treat the tournament as complete regardless of ESPN event status
+
 ## [0.1.2.3] - 2026-04-12
 
 ### Fixed
