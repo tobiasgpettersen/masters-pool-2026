@@ -470,10 +470,10 @@ function calculateGolferPoolPoints(golferName, golferData, isBonus, worstScores,
     // else: round hasn't happened yet, 0 points
   }
 
-  // Finish position bonus (only after tournament is complete)
+  // Finish position bonus (live during R4, final after tournament complete)
   let finishBonus = 0;
   const pos = golferData.position;
-  if (pos && tournamentComplete) {
+  if (pos && (tournamentComplete || currentRound === 4)) {
     if (pos === 1) finishBonus = 15;
     else if (pos >= 2 && pos <= 5) finishBonus = 10;
     else if (pos >= 6 && pos <= 10) finishBonus = 7;
@@ -984,7 +984,8 @@ function renderRow(entry) {
     const rc = roundTotals[r] > 0 ? "text-green-400" : roundTotals[r] < 0 ? "text-red-400" : "text-gray-400";
     html += '<div class="col-span-1 text-center text-sm font-mono ' + rc + '">' + formatPoints(roundTotals[r]) + '</div>';
   }
-  html += '<div class="col-span-1 text-center text-sm font-mono text-yellow-400">' + (finishBonusTotal > 0 ? "+" + finishBonusTotal : "-") + '</div>';
+  const estBonus = lastData && lastData.currentRound === 4 && !lastData.tournamentComplete;
+  html += '<div class="col-span-1 text-center text-sm font-mono ' + (estBonus ? 'text-amber-400 italic' : 'text-yellow-400') + '">' + (finishBonusTotal > 0 ? (estBonus ? '+' + finishBonusTotal + ' (est.)' : '+' + finishBonusTotal) : '-') + '</div>';
   html += '<div class="col-span-1 text-center text-sm font-mono text-blue-400">' + (leaderBonusTotal > 0 ? "+" + leaderBonusTotal : "-") + '</div>';
   html += '<div class="col-span-2 text-right flex items-center justify-end gap-2"><span class="text-xl font-bold ' + pointsColor + '">' + formatPoints(entry.totalPoints) + '</span>' + chevronSvg + '</div>';
   html += '</div>';
@@ -1126,10 +1127,11 @@ function renderStats() {
   html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r2\')">R2' + sortArrow('r2') + '</th>';
   html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r3\')">R3' + sortArrow('r3') + '</th>';
   html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'r4\')">R4' + sortArrow('r4') + '</th>';
-  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'finishBonus\')">Fin' + sortArrow('finishBonus') + '</th>';
+  const estBonusStats = lastData && lastData.currentRound === 4 && !lastData.tournamentComplete;
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'finishBonus\')">' + (estBonusStats ? '~Fin' : 'Fin') + sortArrow('finishBonus') + '</th>';
   html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'roundLeader\')">Ldr' + sortArrow('roundLeader') + '</th>';
   html += '<th class="text-right pb-2 cursor-pointer hover:text-white select-none" onclick="sortStats(\'poolPoints\')">Pts' + sortArrow('poolPoints') + '</th>';
-  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'value\')">Val' + sortArrow('value') + '</th>';
+  html += '<th class="text-center pb-2 px-1 cursor-pointer hover:text-white select-none hidden md:table-cell" onclick="sortStats(\'value\')" title="Value: points earned per salary dollar (\u00d7100). Higher = better bang for your cap space.">Val' + sortArrow('value') + '</th>';
   html += '</tr></thead><tbody>';
 
   for (const g of golferStats) {
@@ -1183,7 +1185,7 @@ function renderStats() {
     }
 
     // Finish bonus (hidden mobile)
-    html += '<td class="py-2 px-1 text-center font-mono text-xs text-yellow-400 hidden md:table-cell">' + (g.finishBonus > 0 ? "+" + g.finishBonus : "-") + '</td>';
+    html += '<td class="py-2 px-1 text-center font-mono text-xs hidden md:table-cell ' + (estBonusStats ? 'text-amber-400 italic' : 'text-yellow-400') + '">' + (g.finishBonus > 0 ? (estBonusStats ? '~+' + g.finishBonus : '+' + g.finishBonus) : '-') + '</td>';
 
     // Leader bonus (hidden mobile)
     html += '<td class="py-2 px-1 text-center font-mono text-xs text-blue-400 hidden md:table-cell">' + (g.roundLeaderBonus > 0 ? "+" + g.roundLeaderBonus : "-") + '</td>';
@@ -1352,7 +1354,7 @@ function renderRules() {
   html += '<svg class="w-5 h-5 text-gray-400 transition-transform duration-200 rule-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
   html += '</button>';
   html += '<div class="rule-content px-5 pb-5">';
-  html += '<p class="text-sm text-gray-300 mb-3">Additional points awarded based on each player\'s final tournament finish:</p>';
+  html += '<p class="text-sm text-gray-300 mb-3">Additional points awarded based on each player\'s tournament finish position. During the final round, estimated bonus points are shown live based on current positions (in <span class="text-amber-400">amber</span>) and become final when the round completes.</p>';
   html += '<table class="w-full text-sm mb-4"><thead><tr class="text-gray-400 border-b border-board-border"><th class="text-left py-2 font-semibold">Finish Position</th><th class="text-right py-2 font-semibold">Bonus Points</th></tr></thead><tbody>';
   html += '<tr class="border-b border-board-border/50"><td class="py-2.5"><span class="text-augusta-gold font-semibold">Wins The Masters</span></td><td class="text-right font-mono text-augusta-gold font-bold">15 pts</td></tr>';
   html += '<tr class="border-b border-board-border/50"><td class="py-2.5 text-gray-300">2nd - 5th</td><td class="text-right font-mono text-white font-semibold">10 pts</td></tr>';
@@ -1506,8 +1508,9 @@ function renderDetailCard(entry, isModal = false, highlightGolfer = null) {
   html += '</div>';
 
   // Players table
+  const estBonusDetail = lastData && lastData.currentRound === 4 && !lastData.tournamentComplete;
   html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-gray-400 text-xs uppercase border-b border-board-border">';
-  html += '<th class="text-left pb-2 pr-2">Player</th><th class="text-center pb-2 px-1">Pos</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">Fin</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
+  html += '<th class="text-left pb-2 pr-2">Player</th><th class="text-center pb-2 px-1">Pos</th><th class="text-center pb-2 px-1">$</th><th class="text-center pb-2 px-1">Score</th><th class="text-center pb-2 px-1">R1</th><th class="text-center pb-2 px-1">R2</th><th class="text-center pb-2 px-1">R3</th><th class="text-center pb-2 px-1">R4</th><th class="text-center pb-2 px-1">' + (estBonusDetail ? '~Fin' : 'Fin') + '</th><th class="text-center pb-2 px-1">Ldr</th><th class="text-right pb-2">Tot</th></tr></thead><tbody>';
 
   let totalSalary = 0;
   for (const p of entry.players) {
@@ -1548,7 +1551,7 @@ function renderDetailCard(entry, isModal = false, highlightGolfer = null) {
       const rc = p.rounds[r] > 0 ? "text-green-400" : p.rounds[r] < 0 ? "text-red-400" : "text-gray-600";
       html += '<td class="py-2 px-1 text-center font-mono text-xs ' + rc + '">' + (p.rounds[r] !== 0 ? formatPoints(p.rounds[r]) : "-") + '</td>';
     }
-    html += '<td class="py-2 px-1 text-center font-mono text-xs text-yellow-400">' + (p.bonus > 0 ? "+" + p.bonus : "-") + '</td>';
+    html += '<td class="py-2 px-1 text-center font-mono text-xs ' + (estBonusDetail ? 'text-amber-400 italic' : 'text-yellow-400') + '">' + (p.bonus > 0 ? (estBonusDetail ? '~+' + p.bonus : '+' + p.bonus) : '-') + '</td>';
     html += '<td class="py-2 px-1 text-center font-mono text-xs text-blue-400">' + (p.roundLeader > 0 ? "+" + p.roundLeader : "-") + '</td>';
     html += '<td class="py-2 text-right font-bold ' + ptsColor + '">' + formatPoints(p.total) + '</td>';
     html += '</tr>';

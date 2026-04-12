@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2.2] - 2026-04-11
+
+### Added
+- Live finish bonus scoring during Round 4: estimated bonus points now appear in real-time as golfer positions shift, flowing into pool rankings and entry totals
+- Estimated bonus values shown in amber with tilde prefix (~+10) to distinguish from final values; snaps to solid yellow when the tournament completes
+- Visual treatment applies across all views: Player Stats table, leaderboard entry cards, and expanded detail cards
+- Val column tooltip in Player Stats: hover to see how the value score is calculated (points per salary dollar)
+- Rules tab updated to explain the live estimated bonus behavior during the final round
+
 ## [0.1.2.1] - 2026-04-11
 
 ### Added
