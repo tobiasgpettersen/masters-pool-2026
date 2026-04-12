@@ -405,13 +405,21 @@ function parseESPNData(apiData) {
     );
   }
 
-  // Check if the tournament is complete (all 4 rounds done AND ESPN says "Final").
-  // During a playoff, R4 rounds are complete but eventStatus is still "In Progress".
-  // This keeps bonuses in estimated/amber mode until the playoff resolves.
+  // Check if the tournament is complete.
+  // Primary: ESPN says "Final" and all R4 rounds are done.
+  // Fallback: R4 complete, all rounds done, and no one is still on the course (all players are F).
+  // The fallback catches the post-playoff gap before ESPN flips to "Final".
   let tournamentComplete = false;
-  if (currentRound === 4 && isFinal) {
+  if (currentRound === 4) {
     const activeGolfers = [...golfers.values()].filter(g => g.isActive);
-    tournamentComplete = activeGolfers.length > 0 && activeGolfers.every(g => g.rounds[3].complete);
+    const allR4RoundsDone = activeGolfers.length > 0 && activeGolfers.every(g => g.rounds[3].complete);
+    if (isFinal && allR4RoundsDone) {
+      tournamentComplete = true;
+    } else if (roundComplete && allR4RoundsDone) {
+      // All players finished (F) — no one on course — treat as complete
+      const noneOnCourse = activeGolfers.every(g => !g.rounds[3] || g.rounds[3].holesCompleted >= 18);
+      if (noneOnCourse) tournamentComplete = true;
+    }
   }
 
   return { golfers, eventStatus, currentRound, roundComplete, worstScorePerRound, tournamentComplete };
@@ -754,11 +762,13 @@ async function fetchAndScore() {
     document.getElementById("liveStatus").className = "text-green-300 font-medium";
 
     const allR4Done = lastData.currentRound === 4 && lastData.roundComplete && !lastData.tournamentComplete;
-    const statusText = allR4Done
-      ? "Playoff"
-      : lastData.roundComplete
-        ? "End of Round " + lastData.currentRound
-        : lastData.eventStatus;
+    const statusText = lastData.tournamentComplete
+      ? "Final"
+      : allR4Done
+        ? "Playoff"
+        : lastData.roundComplete
+          ? "End of Round " + lastData.currentRound
+          : lastData.eventStatus;
     const roundInfo = lastData.currentRound > 0
       ? "Round " + lastData.currentRound + " • " + statusText
       : lastData.eventStatus;
