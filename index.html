@@ -347,27 +347,35 @@ function parseESPNData(apiData) {
 
   }
 
-  // Recompute positions for active players only.
+  // When ESPN reports "Final", trust its positions (including playoff results).
+  // During live play, re-rank from scores because ESPN inflates positions with cut/WD/DQ players.
+  const isFinal = /final/i.test(eventStatus);
+
+  // Recompute positions for active players only (live play only).
   // ESPN positions include cut/WD/DQ players in the ranking, inflating positions.
   // This runs after both ESPN data and cut detection to ensure correct active-only ranking.
+  // Skipped when Final: ESPN's post-tournament positions are official and correct.
   const hasInactivePlayers = [...golfers.values()].some(g => !g.isActive);
   if (hasInactivePlayers) {
-    const activeSorted = [...golfers.entries()]
-      .filter(([, g]) => g.isActive)
-      .map(([name, g]) => {
-        const scoreNum = g.overallScore === "E" ? 0 : parseInt(g.overallScore, 10) || 0;
-        return { name, scoreNum };
-      })
-      .sort((a, b) => a.scoreNum - b.scoreNum);
-    let activeRank = 1;
-    for (let i = 0; i < activeSorted.length; i++) {
-      if (i > 0 && activeSorted[i].scoreNum !== activeSorted[i - 1].scoreNum) activeRank = i + 1;
-      const isTied = (i > 0 && activeSorted[i].scoreNum === activeSorted[i - 1].scoreNum) ||
-        (i < activeSorted.length - 1 && activeSorted[i].scoreNum === activeSorted[i + 1].scoreNum);
-      const g = golfers.get(activeSorted[i].name);
-      g.position = activeRank;
-      g.tied = isTied;
+    if (!isFinal) {
+      const activeSorted = [...golfers.entries()]
+        .filter(([, g]) => g.isActive)
+        .map(([name, g]) => {
+          const scoreNum = g.overallScore === "E" ? 0 : parseInt(g.overallScore, 10) || 0;
+          return { name, scoreNum };
+        })
+        .sort((a, b) => a.scoreNum - b.scoreNum);
+      let activeRank = 1;
+      for (let i = 0; i < activeSorted.length; i++) {
+        if (i > 0 && activeSorted[i].scoreNum !== activeSorted[i - 1].scoreNum) activeRank = i + 1;
+        const isTied = (i > 0 && activeSorted[i].scoreNum === activeSorted[i - 1].scoreNum) ||
+          (i < activeSorted.length - 1 && activeSorted[i].scoreNum === activeSorted[i + 1].scoreNum);
+        const g = golfers.get(activeSorted[i].name);
+        g.position = activeRank;
+        g.tied = isTied;
+      }
     }
+    // Always null out inactive players regardless of Final status
     for (const [, g] of golfers) {
       if (!g.isActive) { g.position = null; g.tied = false; }
     }
@@ -397,9 +405,11 @@ function parseESPNData(apiData) {
     );
   }
 
-  // Check if the tournament is complete (all 4 rounds done for active golfers)
+  // Check if the tournament is complete (all 4 rounds done AND ESPN says "Final").
+  // During a playoff, R4 rounds are complete but eventStatus is still "In Progress".
+  // This keeps bonuses in estimated/amber mode until the playoff resolves.
   let tournamentComplete = false;
-  if (currentRound === 4) {
+  if (currentRound === 4 && isFinal) {
     const activeGolfers = [...golfers.values()].filter(g => g.isActive);
     tournamentComplete = activeGolfers.length > 0 && activeGolfers.every(g => g.rounds[3].complete);
   }
@@ -743,9 +753,12 @@ async function fetchAndScore() {
     document.getElementById("liveStatus").textContent = "LIVE";
     document.getElementById("liveStatus").className = "text-green-300 font-medium";
 
-    const statusText = lastData.roundComplete
-      ? "End of Round " + lastData.currentRound
-      : lastData.eventStatus;
+    const allR4Done = lastData.currentRound === 4 && lastData.roundComplete && !lastData.tournamentComplete;
+    const statusText = allR4Done
+      ? "Playoff"
+      : lastData.roundComplete
+        ? "End of Round " + lastData.currentRound
+        : lastData.eventStatus;
     const roundInfo = lastData.currentRound > 0
       ? "Round " + lastData.currentRound + " • " + statusText
       : lastData.eventStatus;
